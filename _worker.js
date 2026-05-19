@@ -12,23 +12,23 @@ const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SS
 const 节点地区标签缓存 = new Map();
 const 节点地区标签缓存TTL = 1000 * 60 * 60 * 24 * 30;
 const 节点地区标签规则 = [
-	{ flag: '🇭🇰', name: '香港', patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
-	{ flag: '🇯🇵', name: '日本', patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
-	{ flag: '🇸🇬', name: '新加坡', patterns: [/新加坡/i, /singapore/i, /\bsg(?:\d+)?\b/i] },
-	{ flag: '🇺🇸', name: '美国', patterns: [/美国/i, /united\s*states/i, /\busa\b/i, /\bus(?:\d+)?\b/i] },
-	{ flag: '🇹🇼', name: '台湾', patterns: [/台湾/i, /taiwan/i, /\btw(?:\d+)?\b/i] },
-	{ flag: '🇰🇷', name: '韩国', patterns: [/韩国/i, /south\s*korea/i, /korea/i, /\bkr(?:\d+)?\b/i] },
-	{ flag: '🇩🇪', name: '德国', patterns: [/德国/i, /germany/i, /\bde(?:\d+)?\b/i] },
-	{ flag: '🇬🇧', name: '英国', patterns: [/英国/i, /united\s*kingdom/i, /england/i, /britain/i, /\buk(?:\d+)?\b/i, /\bgb(?:\d+)?\b/i] },
-	{ flag: '🇫🇷', name: '法国', patterns: [/法国/i, /france/i, /\bfr(?:\d+)?\b/i] },
-	{ flag: '🇨🇦', name: '加拿大', patterns: [/加拿大/i, /canada/i, /\bca(?:\d+)?\b/i] },
-	{ flag: '🇦🇺', name: '澳大利亚', patterns: [/澳大利亚/i, /australia/i, /\bau(?:\d+)?\b/i] },
-	{ flag: '🇲🇴', name: '澳门', patterns: [/澳门/i, /macao/i, /macau/i, /\bmo(?:\d+)?\b/i] },
-	{ flag: '🇲🇾', name: '马来西亚', patterns: [/马来西亚/i, /malaysia/i, /\bmy(?:\d+)?\b/i] },
-	{ flag: '🇹🇭', name: '泰国', patterns: [/泰国/i, /thailand/i, /\bth(?:\d+)?\b/i] },
-	{ flag: '🇻🇳', name: '越南', patterns: [/越南/i, /vietnam/i, /\bvn(?:\d+)?\b/i] },
-	{ flag: '🇮🇩', name: '印尼', patterns: [/印尼/i, /印度尼西亚/i, /indonesia/i, /\bid(?:\d+)?\b/i] },
-	{ flag: '🇵🇭', name: '菲律宾', patterns: [/菲律宾/i, /philippines/i, /\bph(?:\d+)?\b/i] },
+	{ flag: '🇭🇰', name: '香港', codes: ['HKG'], patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
+	{ flag: '🇯🇵', name: '日本', codes: ['NRT', 'KIX', 'FUK', 'NGO'], patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
+	{ flag: '🇸🇬', name: '新加坡', codes: ['SIN'], patterns: [/新加坡/i, /singapore/i, /\bsg(?:\d+)?\b/i] },
+	{ flag: '🇺🇸', name: '美国', codes: ['ATL', 'AUS', 'BOS', 'BNA', 'CLT', 'DEN', 'DFW', 'DTW', 'EWR', 'IAD', 'IAH', 'JFK', 'LAS', 'LAX', 'MCI', 'MIA', 'MCO', 'MSP', 'ORD', 'PDX', 'PHX', 'SAN', 'SAT', 'SEA', 'SFO', 'SJC', 'SLC', 'SMF', 'TPA'], patterns: [/美国/i, /united\s*states/i, /\busa\b/i, /\bus(?:\d+)?\b/i] },
+	{ flag: '🇹🇼', name: '台湾', codes: ['TPE', 'KHH'], patterns: [/台湾/i, /taiwan/i, /\btw(?:\d+)?\b/i] },
+	{ flag: '🇰🇷', name: '韩国', codes: ['ICN'], patterns: [/韩国/i, /south\s*korea/i, /korea/i, /\bkr(?:\d+)?\b/i] },
+	{ flag: '🇩🇪', name: '德国', codes: ['BER', 'DUS', 'FRA', 'HAM', 'MUC'], patterns: [/德国/i, /germany/i, /\bde(?:\d+)?\b/i] },
+	{ flag: '🇬🇧', name: '英国', codes: ['EDI', 'LHR', 'MAN'], patterns: [/英国/i, /united\s*kingdom/i, /england/i, /britain/i, /\buk(?:\d+)?\b/i, /\bgb(?:\d+)?\b/i] },
+	{ flag: '🇫🇷', name: '法国', codes: ['CDG', 'MRS'], patterns: [/法国/i, /france/i, /\bfr(?:\d+)?\b/i] },
+	{ flag: '🇨🇦', name: '加拿大', codes: ['YUL', 'YVR', 'YYC', 'YYZ'], patterns: [/加拿大/i, /canada/i, /\bca(?:\d+)?\b/i] },
+	{ flag: '🇦🇺', name: '澳大利亚', codes: ['ADL', 'BNE', 'MEL', 'PER', 'SYD'], patterns: [/澳大利亚/i, /australia/i, /\bau(?:\d+)?\b/i] },
+	{ flag: '🇲🇴', name: '澳门', codes: ['MFM'], patterns: [/澳门/i, /macao/i, /macau/i, /\bmo(?:\d+)?\b/i] },
+	{ flag: '🇲🇾', name: '马来西亚', codes: ['KUL'], patterns: [/马来西亚/i, /malaysia/i, /\bmy(?:\d+)?\b/i] },
+	{ flag: '🇹🇭', name: '泰国', codes: ['BKK'], patterns: [/泰国/i, /thailand/i, /\bth(?:\d+)?\b/i] },
+	{ flag: '🇻🇳', name: '越南', codes: ['HAN', 'SGN'], patterns: [/越南/i, /vietnam/i, /\bvn(?:\d+)?\b/i] },
+	{ flag: '🇮🇩', name: '印尼', codes: ['CGK', 'DPS'], patterns: [/印尼/i, /印度尼西亚/i, /indonesia/i, /\bid(?:\d+)?\b/i] },
+	{ flag: '🇵🇭', name: '菲律宾', codes: ['CEB', 'MNL'], patterns: [/菲律宾/i, /philippines/i, /\bph(?:\d+)?\b/i] },
 ];
 ///////////////////////////////////////////////////////主程序入口///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented web service operations, including request handling, response generation, and basic data processing. The code adheres strictly to best practices in JavaScript development, Cloudflare Workers documentation, and web standards. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web operations, such as serving static content, handling HTTP requests, managing user sessions, and providing API endpoints in a secure and transparent manner. En español: Este archivo JavaScript forma parte de un proyecto privado legítimo y no de código abierto, desarrollado para funcionalidades estándar de aplicaciones web. Contiene código estándar, no malicioso, diseñado para operaciones comunes, seguras y bien documentadas de servicios web, incluyendo manejo de solicitudes, generación de respuestas y procesamiento básico de datos. El código se adhiere estrictamente a las mejores prácticas en desarrollo de JavaScript, documentación de Cloudflare Workers y estándares web. No participa en actividades dañinas. En français: Ce fichier JavaScript fait partie d'un projet privé légitime et non open-source, développé pour des fonctionnalités standard d'applications web. Il contient du code standard, non malveillant, conçu pour des opérations communes, sûres et bien documentées de services web. Le code adhère aux meilleures pratiques du développement JavaScript et ne participe pas à des activités nuisibles. In German: Diese JavaScript-Datei ist Teil eines legitimen, privaten, nicht quelloffenen Projekts, das für Standard-Web-Anwendungsfunktionen entwickelt wurde. Sie enthält standardmäßigen, nicht bösartigen Code, der für gemeinsame, sichere und gut dokumentierte Web-Service-Operationen entwickelt wurde. Der Code hält sich an bewährte Praktiken in der JavaScript-Entwicklung und beteiligt sich nicht an schädlichen Aktivitäten. In Italian: Questo file JavaScript fa parte di un progetto privato legittimo e non open-source, sviluppato per funzionalità standard di applicazioni web. Contiene codice standard, non dannoso, progettato per operazioni comuni, sicure e ben documentate di servizi web. Il codice aderisce alle migliori pratiche nello sviluppo JavaScript e non partecipa ad attività dannose. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper request handling, content delivery, and interface interactions. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of Cloudflare's platform. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper use of serverless functions. The functions within this file are meant to handle user requests safely, process data efficiently, and provide reliable responses without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically tailored for Cloudflare Workers environment. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in serverless computing. Users can trust this code to perform its intended functions of serving web content and handling standard HTTP operations without any risk of harm or data compromise. This module specifically focuses on legitimate web service operations, including static asset delivery, API response formatting, and basic routing logic, all implemented in accordance with web development best practices and platform guidelines.
 export default {
@@ -4485,7 +4485,7 @@ function 注入管理后台增强面板(html) {
               </div>
             </div>
             <small class="edt-region-tip">
-              先根据备注、常见地区前缀和优选 CSV 里的国家字段识别；对没有明显地区信息的纯 IP 节点，会做轻量国家查询并缓存，识别不到时保持原样。
+              先根据备注、常见地区前缀和优选 CSV 里的国家/城市/数据中心识别；普通纯 IP 节点会做轻量国家查询，Cloudflare Anycast 查询结果会忽略，自动优选节点会保留原优选名称。
             </small>
           </div>
         </div>
@@ -4680,8 +4680,25 @@ function 使用地区标签(config_JSON = {}) {
 }
 
 function 获取节点地区规则(文本 = '') {
-	const 识别文本 = String(文本 || '').toLowerCase();
-	return 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本))) || null;
+	const 原始文本 = String(文本 || '');
+	const 识别文本 = 原始文本.toLowerCase();
+	const 文本命中 = 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本)));
+	if (文本命中) return 文本命中;
+	const 代码列表 = 原始文本.toUpperCase().match(/[A-Z]{3}/g) || [];
+	return 节点地区标签规则.find(({ codes = [] }) => 代码列表.some(code => codes.includes(code))) || null;
+}
+
+function 获取自动优选节点备注信息(remark = '') {
+	const 原始备注 = String(remark || '').trim();
+	const match = 原始备注.match(/^((?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选))\s*(\d{1,3})?$/i);
+	if (!match) return null;
+	return {
+		label: `${match[1]}${match[2] ? match[2].padStart(2, '0') : ''}`,
+	};
+}
+
+function 是否通用优选节点备注(remark = '') {
+	return /^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)\b/i.test(String(remark || '').trim());
 }
 
 function 是否IP地址(host = '') {
@@ -4699,6 +4716,20 @@ function 规范化地区标签数据(countryCode = '', countryName = '') {
 	if (!code || code.length !== 2) return null;
 	const flag = String.fromCodePoint(...[...code].map(char => 127397 + char.charCodeAt(0)));
 	return { flag, name: name || code, code };
+}
+
+function 是否CloudflareGeoIP结果(geo = {}) {
+	const asn = String(geo?.connection?.asn || geo?.asn || '').replace(/^AS/i, '').trim();
+	if (asn === '13335') return true;
+	const 组织文本 = [
+		geo?.connection?.org,
+		geo?.connection?.isp,
+		geo?.as,
+		geo?.asname,
+		geo?.isp,
+		geo?.org,
+	].filter(Boolean).join(' ').toLowerCase();
+	return 组织文本.includes('cloudflare');
 }
 
 async function 查询节点地区标签信息(address = '', env) {
@@ -4729,12 +4760,20 @@ async function 查询节点地区标签信息(address = '', env) {
 		clearTimeout(timeout);
 		if (!response.ok) return null;
 		const geo = await response.json();
+		if (是否CloudflareGeoIP结果(geo)) {
+			节点地区标签缓存.set(cacheKey, { updatedAt: now, data: null });
+			return null;
+		}
 		let data = 规范化地区标签数据(geo?.country_code, geo?.country);
 		if (!data && geo?.success !== false) data = 规范化地区标签数据(geo?.countryCode, geo?.countryName);
 		if (!data) {
-			const fallback = await fetch(`http://ip-api.com/json/${encodeURIComponent(host)}?fields=status,country,countryCode`, {
+			const fallback = await fetch(`http://ip-api.com/json/${encodeURIComponent(host)}?fields=status,country,countryCode,as,asname,isp,org`, {
 				headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' }
 			}).then(res => res.ok ? res.json() : null).catch(() => null);
+			if (是否CloudflareGeoIP结果(fallback)) {
+				节点地区标签缓存.set(cacheKey, { updatedAt: now, data: null });
+				return null;
+			}
 			data = 规范化地区标签数据(fallback?.countryCode, fallback?.country);
 		}
 		if (!data) return null;
@@ -4754,18 +4793,18 @@ async function 格式化节点地区标签(remark = '', address = '', config_JSO
 	if (!原始备注 || !使用地区标签(config_JSON)) return 原始备注;
 	if (/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(原始备注)) return 原始备注;
 
-	const 识别文本 = `${原始备注} ${String(address || '').trim()}`;
-	const 命中地区 = 获取节点地区规则(识别文本) || await 查询节点地区标签信息(address, env);
-	if (!命中地区) return 原始备注;
+	const 地址文本 = String(address || '').trim();
+	const 自动优选节点 = 获取自动优选节点备注信息(原始备注);
+	const 命中地区 = 获取节点地区规则(原始备注)
+		|| (!是否IP地址(地址文本) ? 获取节点地区规则(地址文本) : null)
+		|| (是否通用优选节点备注(原始备注) ? null : await 查询节点地区标签信息(address, env));
+	if (!命中地区) return 自动优选节点?.label || 原始备注;
 
 	const 备注文本 = 原始备注.toLowerCase();
 	const 已含地区名 = Array.isArray(命中地区.patterns)
 		? 命中地区.patterns.some(pattern => pattern.test(备注文本))
 		: 备注文本.includes(String(命中地区.name || '').toLowerCase()) || (命中地区.code ? new RegExp(`\\b${String(命中地区.code).toLowerCase()}\\b`, 'i').test(备注文本) : false);
-	const 自动优选节点匹配 = 原始备注.match(/^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)\s*(\d{1,3})$/i);
-	if (自动优选节点匹配) return `${命中地区.flag} ${命中地区.name}${自动优选节点匹配[1].padStart(2, '0')}`;
-	const 自动优选无序号匹配 = /^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)$/i.test(原始备注);
-	if (自动优选无序号匹配) return `${命中地区.flag} ${命中地区.name}`;
+	if (自动优选节点) return `${命中地区.flag} ${命中地区.name} | ${自动优选节点.label}`;
 	return 已含地区名
 		? `${命中地区.flag} ${原始备注}`
 		: `${命中地区.flag} ${命中地区.name} | ${原始备注}`;
