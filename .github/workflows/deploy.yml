@@ -6,15 +6,6 @@ permissions:
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: '部署环境'
-        required: true
-        default: 'production'
-        type: choice
-        options:
-          - production
-          - preview
 
   push:
     branches:
