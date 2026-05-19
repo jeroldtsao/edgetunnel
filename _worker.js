@@ -9,6 +9,8 @@ const 上行合包目标字节 = 16 * 1024, 上行队列最大字节 = 16 * 1024
 const 下行Grain包字节 = 32 * 1024, 下行Grain尾部阈值 = 512, 下行Grain静默毫秒 = 0;
 const TCP并发拨号数 = 4;
 const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini";
+const 节点地区标签缓存 = new Map();
+const 节点地区标签缓存TTL = 1000 * 60 * 60 * 24 * 30;
 const 节点地区标签规则 = [
 	{ flag: '🇭🇰', name: '香港', patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
 	{ flag: '🇯🇵', name: '日本', patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
@@ -407,12 +409,12 @@ export default {
 							const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
 							const isLoonOrSurge = ua.includes('loon') || ua.includes('surge');
 							const { type: 传输协议, 路径字段名, 域名字段名 } = 获取传输协议配置(config_JSON);
-							订阅内容 = 其他节点LINK + 完整优选IP.map(原始地址 => {
-								// 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
-								// 示例:
-								//   - 域名: hj.xmm1993.top:2096#备注 或 example.com
-								//   - IPv4: 166.0.188.128:443#Los Angeles 或 166.0.188.128
-								//   - IPv6: [2606:4700::]:443#CMCC 或 [2606:4700::]
+								const 订阅节点列表 = await Promise.all(完整优选IP.map(async 原始地址 => {
+									// 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
+									// 示例:
+									//   - 域名: hj.xmm1993.top:2096#备注 或 example.com
+									//   - IPv4: 166.0.188.128:443#Los Angeles 或 166.0.188.128
+									//   - IPv6: [2606:4700::]:443#CMCC 或 [2606:4700::]
 								const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
 								const match = 原始地址.match(regex);
 
@@ -444,7 +446,7 @@ export default {
 										const 匹配到的反代IP = 反代IP池.find(p => p.includes(节点地址));
 										if (匹配到的反代IP) 完整节点路径 = (`${config_JSON.PATH}/proxyip=${匹配到的反代IP}`).replace(/\/\//g, '/') + (config_JSON.启用0RTT ? '?ed=2560' : '');
 									}
-									节点备注 = 格式化节点地区标签(节点备注, 节点地址, config_JSON);
+									节点备注 = await 格式化节点地区标签(节点备注, 节点地址, config_JSON, env);
 									if (isLoonOrSurge) 完整节点路径 = 完整节点路径.replace(/,/g, '%2C');
 
 								if (协议类型 === 'ss' && !作为优选订阅生成器) {
@@ -460,7 +462,8 @@ export default {
 									const 传输路径参数值 = 获取传输路径参数值(config_JSON, 完整节点路径, 作为优选订阅生成器);
 									return `${协议类型}://00000000-0000-4000-8000-000000000000@${节点地址}:${节点端口}?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=example.com&fp=${config_JSON.Fingerprint}&sni=example.com&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none${config_JSON.跳过证书验证 ? '&insecure=1&allowInsecure=1' : ''}#${encodeURIComponent(节点备注)}`;
 								}
-							}).filter(item => item !== null).join('\n');
+								}));
+								订阅内容 = 其他节点LINK + 订阅节点列表.filter(item => item !== null).join('\n');
 						} else { // 订阅转换
 							const 当前订阅转换配置 = 获取订阅转换配置链接(url, config_JSON);
 							const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 今日订阅转换后端专属TOKEN + '&asOrg=' + 识别运营商(request) + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(当前订阅转换配置)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&scv=${config_JSON.跳过证书验证}`;
@@ -4482,7 +4485,7 @@ function 注入管理后台增强面板(html) {
               </div>
             </div>
             <small class="edt-region-tip">
-              仅根据现有备注、常见地区前缀和优选 CSV 里的国家字段做轻量识别，不会实时查询 IP 国家。识别不到时保持原样。
+              先根据备注、常见地区前缀和优选 CSV 里的国家字段识别；对没有明显地区信息的纯 IP 节点，会做轻量国家查询并缓存，识别不到时保持原样。
             </small>
           </div>
         </div>
@@ -4676,17 +4679,82 @@ function 使用地区标签(config_JSON = {}) {
 	return ['1', 'true', true, 1].includes(config_JSON?.优选订阅生成?.地区标签);
 }
 
-function 格式化节点地区标签(remark = '', address = '', config_JSON = {}) {
+function 获取节点地区规则(文本 = '') {
+	const 识别文本 = String(文本 || '').toLowerCase();
+	return 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本))) || null;
+}
+
+function 是否IP地址(host = '') {
+	const 值 = String(host || '').trim().replace(/^\[|\]$/g, '');
+	if (!值) return false;
+	if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(值)) return true;
+	return /^[0-9a-f:]+$/i.test(值) && 值.includes(':');
+}
+
+function 规范化地区标签数据(countryCode = '', countryName = '') {
+	const code = String(countryCode || '').trim().toUpperCase();
+	const name = String(countryName || '').trim();
+	const 命中地区 = 获取节点地区规则(`${code} ${name}`);
+	if (命中地区) return { flag: 命中地区.flag, name: 命中地区.name, code };
+	if (!code || code.length !== 2) return null;
+	const flag = String.fromCodePoint(...[...code].map(char => 127397 + char.charCodeAt(0)));
+	return { flag, name: name || code, code };
+}
+
+async function 查询节点地区标签信息(address = '', env) {
+	const host = String(address || '').trim().replace(/^\[|\]$/g, '').toLowerCase();
+	if (!host || !是否IP地址(host)) return null;
+	const cacheKey = `geoip:${host}`;
+	const now = Date.now();
+	const memoryCache = 节点地区标签缓存.get(cacheKey);
+	if (memoryCache && now - memoryCache.updatedAt < 节点地区标签缓存TTL) return memoryCache.data;
+
+	try {
+		if (env?.KV && typeof env.KV.get === 'function') {
+			const kvCache = await env.KV.get(cacheKey, 'json');
+			if (kvCache?.updatedAt && kvCache?.data && now - kvCache.updatedAt < 节点地区标签缓存TTL) {
+				节点地区标签缓存.set(cacheKey, kvCache);
+				return kvCache.data;
+			}
+		}
+	} catch (_) { }
+
+	try {
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 1500);
+		const response = await fetch(`https://api.ip.sb/geoip/${encodeURIComponent(host)}`, {
+			headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' },
+			signal: controller.signal,
+		});
+		clearTimeout(timeout);
+		if (!response.ok) return null;
+		const geo = await response.json();
+		const data = 规范化地区标签数据(geo?.country_code, geo?.country);
+		if (!data) return null;
+		const cacheValue = { updatedAt: now, data };
+		节点地区标签缓存.set(cacheKey, cacheValue);
+		try {
+			if (env?.KV && typeof env.KV.put === 'function') await env.KV.put(cacheKey, JSON.stringify(cacheValue));
+		} catch (_) { }
+		return data;
+	} catch (_) {
+		return null;
+	}
+}
+
+async function 格式化节点地区标签(remark = '', address = '', config_JSON = {}, env) {
 	const 原始备注 = String(remark || '').trim();
 	if (!原始备注 || !使用地区标签(config_JSON)) return 原始备注;
 	if (/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(原始备注)) return 原始备注;
 
-	const 识别文本 = `${原始备注} ${String(address || '').trim()}`.toLowerCase();
-	const 命中地区 = 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本)));
+	const 识别文本 = `${原始备注} ${String(address || '').trim()}`;
+	const 命中地区 = 获取节点地区规则(识别文本) || await 查询节点地区标签信息(address, env);
 	if (!命中地区) return 原始备注;
 
 	const 备注文本 = 原始备注.toLowerCase();
-	const 已含地区名 = 命中地区.patterns.some(pattern => pattern.test(备注文本));
+	const 已含地区名 = Array.isArray(命中地区.patterns)
+		? 命中地区.patterns.some(pattern => pattern.test(备注文本))
+		: 备注文本.includes(String(命中地区.name || '').toLowerCase()) || (命中地区.code ? new RegExp(`\\b${String(命中地区.code).toLowerCase()}\\b`, 'i').test(备注文本) : false);
 	return 已含地区名
 		? `${命中地区.flag} ${原始备注}`
 		: `${命中地区.flag} ${命中地区.name} | ${原始备注}`;
