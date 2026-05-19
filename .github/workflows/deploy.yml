@@ -39,65 +39,71 @@ jobs:
           npm install -g wrangler
           sudo apt-get install -y jq
 
-      - name: Configure wrangler
-        run: |
-          mkdir -p ~/.wrangler/config
-          cat > ~/.wrangler/config/default.toml << EOF
-          account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
-          EOF
-
-      # 检查并创建 Pages 项目
+      # 检查并创建 Pages 项目（使用 API）
       - name: Ensure Pages Project
         run: |
           echo "检查 Pages 项目..."
 
-          # 获取项目列表，wrangler 输出可能有多行，取纯 JSON 部分
-          PROJECTS=$(wrangler pages project list 2>/dev/null | grep -v "^$" | grep -v "^[A-Za-z]" || echo "")
+          # 使用 API 检查项目是否存在
+          CHECK=$(curl -s -w "%{http_code}" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
 
-          if echo "$PROJECTS" | grep -q '"name".*"${{ env.PROJECT_NAME }}"'; then
+          HTTP_CODE=$(echo "$CHECK" | tail -c 4)
+
+          if [ "$HTTP_CODE" = "200" ]; then
             echo "✅ Pages 项目已存在: ${{ env.PROJECT_NAME }}"
           else
             echo "创建 Pages 项目: ${{ env.PROJECT_NAME }}"
-            wrangler pages project create "${{ env.PROJECT_NAME }}" --production-branch=main 2>&1 || echo "项目可能已存在"
-            echo "✅ Pages 项目已就绪"
+            curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"name":"${{ env.PROJECT_NAME }}","production_branch":"main"}' \
+              | jq -r '.success' && echo "✅ Pages 项目创建成功" || echo "⚠️ 项目创建失败，可能已存在"
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # 检查并创建 KV 命名空间
+      # 检查并创建 KV 命名空间（使用 API）
       - name: Ensure KV Namespace
         id: kv
         run: |
           echo "检查 KV 命名空间..."
 
-          # 列出所有 KV，找到同名 KV 的 ID
-          KV_ID=""
-          KV_LIST=$(wrangler kv namespace list 2>/dev/null || echo "")
+          # 使用 API 查询现有 KV
+          KV_LIST=$(curl -s \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
 
-          # 从输出中提取 ID (wrangler 输出格式: id | title)
-          if [ -n "$KV_LIST" ]; then
-            KV_ID=$(echo "$KV_LIST" | grep "${{ env.KV_NAME }}" | awk '{print $1}' | head -1)
-          fi
+          # 查找同名 KV 的 ID
+          KV_ID=$(echo "$KV_LIST" | jq -r '.result[] | select(.title == "${{ env.KV_NAME }}") | .id' | head -1)
 
-          if [ -n "$KV_ID" ]; then
+          if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
             echo "✅ KV 命名空间已存在: ${{ env.KV_NAME }} (ID: $KV_ID)"
             echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
           else
             echo "创建 KV 命名空间: ${{ env.KV_NAME }}"
-            CREATE_OUTPUT=$(wrangler kv namespace create "${{ env.KV_NAME }}" 2>&1 || true)
+            CREATE_RESULT=$(curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d '{"title":"${{ env.KV_NAME }}"}')
 
-            # 从创建输出提取 ID
-            KV_ID=$(echo "$CREATE_OUTPUT" | grep -oP 'id: \K[a-f0-9]+' || echo "$CREATE_OUTPUT" | awk '{print $NF}')
+            KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
 
-            if [ -n "$KV_ID" ]; then
+            if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
               echo "✅ KV 命名空间创建成功: ${{ env.KV_NAME }} (ID: $KV_ID)"
               echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
             else
-              echo "⚠️ KV 创建可能已存在，继续部署..."
+              echo "⚠️ KV 创建失败，继续部署..."
             fi
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       # 绑定 KV 到 Pages（使用 API）
       - name: Bind KV to Pages
