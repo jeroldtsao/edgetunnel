@@ -274,7 +274,7 @@ export default {
 					}
 
 					ctx.waitUntil(请求日志记录(env, request, 访问IP, 'Admin_Login', config_JSON));
-					return fetch(Pages静态页面 + '/admin' + url.search);
+					return await 返回管理后台页面(Pages静态页面 + '/admin' + url.search);
 				} else if (访问路径 === 'logout' || uuidRegex.test(访问路径)) {//清除cookie并跳转到登录页面
 					const 响应 = new Response('重定向中...', { status: 302, headers: { 'Location': '/login' } });
 					响应.headers.set('Set-Cookie', 'auth=; Path=/; Max-Age=0; HttpOnly');
@@ -4101,6 +4101,133 @@ function 获取传输路径参数值(配置 = {}, 节点路径 = '/', 作为优�
 
 function log(...args) {
 	if (调试日志打印) console.log(...args);
+}
+
+async function 返回管理后台页面(adminURL) {
+	const response = await fetch(adminURL);
+	const contentType = response.headers.get('Content-Type') || '';
+	if (!contentType.toLowerCase().includes('text/html')) return response;
+	const html = await response.text();
+	const headers = new Headers(response.headers);
+	headers.set('Content-Type', 'text/html; charset=UTF-8');
+	headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+	return new Response(注入自定义直连规则面板(html), { status: response.status, statusText: response.statusText, headers });
+}
+
+function 注入自定义直连规则面板(html) {
+	if (html.includes('id="directRulesModule"')) return html;
+	const 注入内容 = `
+<script>
+(function () {
+  const parseDirectRules = (text) => [...new Set(String(text || '')
+    .split(/[\\n,，、;；|]+/)
+    .map(item => item.trim().replace(/^https?:\\/\\//i, '').split('/')[0].replace(/^\\*\\./, '').replace(/^\\+\\./, ''))
+    .filter(Boolean))];
+
+  const formatDirectRules = (value) => {
+    if (Array.isArray(value)) return value.join('\\n');
+    return parseDirectRules(value).join('\\n');
+  };
+
+  const showDirectRulesToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  async function loadDirectRules() {
+    const input = document.getElementById('directRulesInput');
+    if (!input) return;
+    try {
+      const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
+      if (!response.ok) throw new Error(response.statusText || '读取失败');
+      const config = await response.json();
+      input.value = formatDirectRules(config['直连规则']);
+    } catch (error) {
+      showDirectRulesToast('直连规则读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveDirectRules() {
+    const input = document.getElementById('directRulesInput');
+    const saveBtn = document.getElementById('saveDirectRulesBtn');
+    if (!input || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
+      if (!response.ok) throw new Error(response.statusText || '读取失败');
+      const config = await response.json();
+      const rules = parseDirectRules(input.value);
+      config['直连规则'] = rules;
+      const saveResponse = await fetch('/admin/config.json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=utf-8' },
+        body: JSON.stringify(config)
+      });
+      if (!saveResponse.ok) throw new Error(await saveResponse.text());
+      input.value = rules.join('\\n');
+      try {
+        currentConfig['直连规则'] = rules;
+        originalConfig['直连规则'] = rules;
+      } catch (_) { }
+      showDirectRulesToast('✅ 直连规则已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showDirectRulesToast('直连规则保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  function insertDirectRulesPanel() {
+    if (document.getElementById('directRulesModule')) return;
+    const panel = document.createElement('div');
+    panel.className = 'module collapsed';
+    panel.id = 'directRulesModule';
+    panel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🧭 自定义直连规则
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="directRulesInput">域名关键词</label>
+          <textarea id="directRulesInput" title="订阅直连域名关键词" rows="5" placeholder="m-team&#10;lbx"></textarea>
+          <small style="display:block;margin-top:8px;color:#64748b;line-height:1.6;">
+            每行一个或用逗号分隔。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
+          </small>
+        </div>
+        <div class="module-footer">
+          <button type="button" class="btn btn-secondary" id="reloadDirectRulesBtn">重新读取</button>
+          <button type="button" class="btn btn-primary" id="saveDirectRulesBtn">保存</button>
+        </div>
+      </div>\`;
+
+    const title = panel.querySelector('.module-title');
+    title.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(title);
+      else panel.classList.toggle('collapsed');
+    });
+    title.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        title.click();
+      }
+    });
+    panel.querySelector('#reloadDirectRulesBtn').addEventListener('click', loadDirectRules);
+    panel.querySelector('#saveDirectRulesBtn').addEventListener('click', saveDirectRules);
+
+    const convertModule = Array.from(document.querySelectorAll('.module-title')).find(item => item.textContent.includes('订阅转换配置'))?.closest('.module');
+    const configModule = document.getElementById('preferredSubscriptionModule');
+    const anchor = convertModule || configModule || document.querySelector('.card-container');
+    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(panel, anchor.nextSibling);
+    else document.body.appendChild(panel);
+    loadDirectRules();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', insertDirectRulesPanel);
+  else insertDirectRulesPanel();
+})();
+</script>`;
+	return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, 注入内容 + '\n</body>') : html + 注入内容;
 }
 
 function 获取自定义直连规则(config_JSON = {}) {
