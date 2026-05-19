@@ -4762,6 +4762,10 @@ async function 格式化节点地区标签(remark = '', address = '', config_JSO
 	const 已含地区名 = Array.isArray(命中地区.patterns)
 		? 命中地区.patterns.some(pattern => pattern.test(备注文本))
 		: 备注文本.includes(String(命中地区.name || '').toLowerCase()) || (命中地区.code ? new RegExp(`\\b${String(命中地区.code).toLowerCase()}\\b`, 'i').test(备注文本) : false);
+	const 自动优选节点匹配 = 原始备注.match(/^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)\s*(\d{1,3})$/i);
+	if (自动优选节点匹配) return `${命中地区.flag} ${命中地区.name}${自动优选节点匹配[1].padStart(2, '0')}`;
+	const 自动优选无序号匹配 = /^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)$/i.test(原始备注);
+	if (自动优选无序号匹配) return `${命中地区.flag} ${命中地区.name}`;
 	return 已含地区名
 		? `${命中地区.flag} ${原始备注}`
 		: `${命中地区.flag} ${命中地区.name} | ${原始备注}`;
