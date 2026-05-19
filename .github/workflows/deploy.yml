@@ -72,60 +72,71 @@ jobs:
         id: kv
         run: |
           echo "检查 KV 命名空间..."
+          KV_NAME="${{ env.KV_NAME }}"
 
           # 使用 API 查询现有 KV
           KV_LIST=$(curl -s \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
 
-          # 查找同名 KV 的 ID
-          KV_ID=$(echo "$KV_LIST" | jq -r '.result[] | select(.title == "${{ env.KV_NAME }}") | .id' | head -1)
+          # 查找同名 KV 的 ID（使用 jq --arg 变量）
+          KV_ID=$(echo "$KV_LIST" | jq -r --arg name "$KV_NAME" '.result[] | select(.title == $name) | .id' | head -1)
 
           if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
-            echo "✅ KV 命名空间已存在: ${{ env.KV_NAME }} (ID: $KV_ID)"
+            echo "✅ KV 命名空间已存在: $KV_NAME (ID: $KV_ID)"
             echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
           else
-            echo "创建 KV 命名空间: ${{ env.KV_NAME }}"
+            echo "创建 KV 命名空间: $KV_NAME"
             CREATE_RESULT=$(curl -s -X POST \
               "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d '{"title":"${{ env.KV_NAME }}"}')
+              -d "{\"title\":\"$KV_NAME\"}")
 
             KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
 
             if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
-              echo "✅ KV 命名空间创建成功: ${{ env.KV_NAME }} (ID: $KV_ID)"
+              echo "✅ KV 命名空间创建成功: $KV_NAME (ID: $KV_ID)"
               echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
             else
-              echo "⚠️ KV 创建失败，继续部署..."
+              echo "::warning::KV 创建失败"
+              echo "$CREATE_RESULT" | jq '.errors'
             fi
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # 绑定 KV 到 Pages（使用 API）
+      # 绑定 KV 到 Pages（使用 wrangler）
       - name: Bind KV to Pages
         if: ${{ steps.kv.outputs.kv_id }}
         run: |
           echo "绑定 KV 到 Pages..."
           KV_ID="${{ steps.kv.outputs.kv_id }}"
+          PROJECT="${{ env.PROJECT_NAME }}"
 
-          BIND_RESULT=$(curl -s -X PATCH \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"production\":{\"kv_bindings\":[{\"binding\":\"KV\",\"namespace_id\":\"$KV_ID\"}]}}}")
+          # 使用 wrangler 绑定 KV
+          wrangler pages project edit "$PROJECT" --kv KV="$KV_ID" 2>&1 || true
 
-          echo "绑定响应:"
-          echo "$BIND_RESULT" | jq '.'
+          # 验证绑定是否成功（使用 API）
+          VERIFY=$(curl -s \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
 
-          if echo "$BIND_RESULT" | jq -e '.success' > /dev/null 2>&1; then
+          KV_BOUND=$(echo "$VERIFY" | jq -r '.result.deployment_configs.production.kv_bindings[] | select(.binding == "KV") | .namespace_id' | head -1)
+
+          if [ -n "$KV_BOUND" ] && [ "$KV_BOUND" = "$KV_ID" ]; then
             echo "✅ KV 绑定成功"
           else
-            echo "::warning::KV 绑定失败"
-            echo "$BIND_RESULT" | jq '.errors'
+            echo "::warning::KV 绑定可能失败，尝试使用 API..."
+
+            # 备用方案：使用 API PATCH
+            curl -s -X PATCH \
+              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"deployment_configs\":{\"production\":{\"kv_bindings\":[{\"binding\":\"KV\",\"namespace_id\":\"$KV_ID\"}]}}}" \
+              | jq '.success' && echo "✅ API 绑定完成"
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
