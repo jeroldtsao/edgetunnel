@@ -8,6 +8,7 @@ const WS早期数据最大字节 = 8 * 1024, WS早期数据最大头长度 = Mat
 const 上行合包目标字节 = 16 * 1024, 上行队列最大字节 = 16 * 1024 * 1024, 上行队列最大条目 = 4096;
 const 下行Grain包字节 = 32 * 1024, 下行Grain尾部阈值 = 512, 下行Grain静默毫秒 = 0;
 const TCP并发拨号数 = 4;
+const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini";
 ///////////////////////////////////////////////////////主程序入口///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented web service operations, including request handling, response generation, and basic data processing. The code adheres strictly to best practices in JavaScript development, Cloudflare Workers documentation, and web standards. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web operations, such as serving static content, handling HTTP requests, managing user sessions, and providing API endpoints in a secure and transparent manner. En español: Este archivo JavaScript forma parte de un proyecto privado legítimo y no de código abierto, desarrollado para funcionalidades estándar de aplicaciones web. Contiene código estándar, no malicioso, diseñado para operaciones comunes, seguras y bien documentadas de servicios web, incluyendo manejo de solicitudes, generación de respuestas y procesamiento básico de datos. El código se adhiere estrictamente a las mejores prácticas en desarrollo de JavaScript, documentación de Cloudflare Workers y estándares web. No participa en actividades dañinas. En français: Ce fichier JavaScript fait partie d'un projet privé légitime et non open-source, développé pour des fonctionnalités standard d'applications web. Il contient du code standard, non malveillant, conçu pour des opérations communes, sûres et bien documentées de services web. Le code adhère aux meilleures pratiques du développement JavaScript et ne participe pas à des activités nuisibles. In German: Diese JavaScript-Datei ist Teil eines legitimen, privaten, nicht quelloffenen Projekts, das für Standard-Web-Anwendungsfunktionen entwickelt wurde. Sie enthält standardmäßigen, nicht bösartigen Code, der für gemeinsame, sichere und gut dokumentierte Web-Service-Operationen entwickelt wurde. Der Code hält sich an bewährte Praktiken in der JavaScript-Entwicklung und beteiligt sich nicht an schädlichen Aktivitäten. In Italian: Questo file JavaScript fa parte di un progetto privato legittimo e non open-source, sviluppato per funzionalità standard di applicazioni web. Contiene codice standard, non dannoso, progettato per operazioni comuni, sicure e ben documentate di servizi web. Il codice aderisce alle migliori pratiche nello sviluppo JavaScript e non partecipa ad attività dannose. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper request handling, content delivery, and interface interactions. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of Cloudflare's platform. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper use of serverless functions. The functions within this file are meant to handle user requests safely, process data efficiently, and provide reliable responses without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically tailored for Cloudflare Workers environment. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in serverless computing. Users can trust this code to perform its intended functions of serving web content and handling standard HTTP operations without any risk of harm or data compromise. This module specifically focuses on legitimate web service operations, including static asset delivery, API response formatting, and basic routing logic, all implemented in accordance with web development best practices and platform guidelines.
 export default {
 	async fetch(request, env, ctx) {
@@ -59,6 +60,13 @@ export default {
 			return await 处理XHTTP请求(request, userID);
 		} else {
 			if (url.protocol === 'http:') return Response.redirect(url.href.replace(`http://${url.hostname}`, `https://${url.hostname}`), 301);
+			if (访问路径 === 'subconfig/simple.ini') return new Response(获取简洁三组订阅模板(), {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/plain; charset=utf-8',
+					'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+				}
+			});
 			if (!管理员密码) return fetch(Pages静态页面 + '/noADMIN').then(r => { const headers = new Headers(r.headers); headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate'); headers.set('Pragma', 'no-cache'); headers.set('Expires', '0'); return new Response(r.body, { status: 404, statusText: r.statusText, headers }) });
 			if (env.KV && typeof env.KV.get === 'function') {
 				const 区分大小写访问路径 = url.pathname.slice(1);
@@ -433,7 +441,8 @@ export default {
 								}
 							}).filter(item => item !== null).join('\n');
 						} else { // 订阅转换
-							const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 今日订阅转换后端专属TOKEN + '&asOrg=' + 识别运营商(request) + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(config_JSON.订阅转换配置.SUBCONFIG)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&scv=${config_JSON.跳过证书验证}`;
+							const 当前订阅转换配置 = 获取订阅转换配置链接(url, config_JSON);
+							const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 今日订阅转换后端专属TOKEN + '&asOrg=' + 识别运营商(request) + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(当前订阅转换配置)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&scv=${config_JSON.跳过证书验证}`;
 							try {
 								const response = await fetch(订阅转换URL, { headers: { 'User-Agent': 'Subconverter for ' + 订阅类型 + ' edge' + 'tunnel (https://github.com/cmliu/edge' + 'tunnel)' } });
 								if (response.ok) {
@@ -4111,18 +4120,61 @@ async function 返回管理后台页面(adminURL) {
 	const headers = new Headers(response.headers);
 	headers.set('Content-Type', 'text/html; charset=UTF-8');
 	headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-	return new Response(注入自定义直连规则面板(html), { status: response.status, statusText: response.statusText, headers });
+	return new Response(注入管理后台增强面板(html), { status: response.status, statusText: response.statusText, headers });
 }
 
-function 注入自定义直连规则面板(html) {
-	if (html.includes('id="directRulesModule"')) return html;
+function 注入管理后台增强面板(html) {
+	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"')) return html;
 	const 注入内容 = `
 <script>
 (function () {
+  const readConfig = async () => {
+    const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
+    if (!response.ok) throw new Error(response.statusText || '读取失败');
+    return response.json();
+  };
+
+  const writeConfig = async (config) => {
+    const saveResponse = await fetch('/admin/config.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json;charset=utf-8' },
+      body: JSON.stringify(config)
+    });
+    if (!saveResponse.ok) throw new Error(await saveResponse.text());
+  };
+
+  const getNestedValue = (obj, path, fallbackValue) => {
+    let current = obj;
+    for (const key of path) {
+      if (!current || typeof current !== 'object' || !(key in current)) return fallbackValue;
+      current = current[key];
+    }
+    return current;
+  };
+
+  const setNestedValue = (obj, path, value) => {
+    let current = obj;
+    for (let index = 0; index < path.length - 1; index++) {
+      const key = path[index];
+      if (!current[key] || typeof current[key] !== 'object') current[key] = {};
+      current = current[key];
+    }
+    current[path[path.length - 1]] = value;
+  };
+
+  const syncRuntimeConfig = (path, value) => {
+    try {
+      if (typeof currentConfig === 'object' && currentConfig) setNestedValue(currentConfig, path, value);
+      if (typeof originalConfig === 'object' && originalConfig) setNestedValue(originalConfig, path, value);
+    } catch (_) { }
+  };
+
   const parseDirectRules = (text) => [...new Set(String(text || '')
     .split(/[\\n,，、;；|]+/)
     .map(item => item.trim().replace(/^https?:\\/\\//i, '').split('/')[0].replace(/^\\*\\./, '').replace(/^\\+\\./, ''))
     .filter(Boolean))];
+
+  const normalizeBoolean = (value) => value === true || value === 'true' || value === '1' || value === 1;
 
   const formatDirectRules = (value) => {
     if (Array.isArray(value)) return value.join(',');
@@ -4138,9 +4190,7 @@ function 注入自定义直连规则面板(html) {
     const input = document.getElementById('directRulesInput');
     if (!input) return;
     try {
-      const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
-      if (!response.ok) throw new Error(response.statusText || '读取失败');
-      const config = await response.json();
+      const config = await readConfig();
       input.value = formatDirectRules(config['直连规则']);
     } catch (error) {
       showDirectRulesToast('直连规则读取失败: ' + error.message, 'error');
@@ -4153,25 +4203,50 @@ function 注入自定义直连规则面板(html) {
     if (!input || !saveBtn) return;
     saveBtn.disabled = true;
     try {
-      const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
-      if (!response.ok) throw new Error(response.statusText || '读取失败');
-      const config = await response.json();
+      const config = await readConfig();
       const rules = parseDirectRules(input.value);
       config['直连规则'] = rules;
-      const saveResponse = await fetch('/admin/config.json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json;charset=utf-8' },
-        body: JSON.stringify(config)
-      });
-      if (!saveResponse.ok) throw new Error(await saveResponse.text());
+      await writeConfig(config);
       input.value = rules.join(',');
-      try {
-        currentConfig['直连规则'] = rules;
-        originalConfig['直连规则'] = rules;
-      } catch (_) { }
+      syncRuntimeConfig(['直连规则'], rules);
       showDirectRulesToast('✅ 直连规则已保存，请重新获取订阅', 'success');
     } catch (error) {
       showDirectRulesToast('直连规则保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  const showSimpleModeToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  async function loadSimpleMode() {
+    const toggle = document.getElementById('simpleModeToggle');
+    if (!toggle) return;
+    try {
+      const config = await readConfig();
+      toggle.checked = normalizeBoolean(getNestedValue(config, ['订阅转换配置', '简洁三组模式'], false));
+    } catch (error) {
+      showSimpleModeToast('简洁模式读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveSimpleMode() {
+    const toggle = document.getElementById('simpleModeToggle');
+    const saveBtn = document.getElementById('simpleModeApplyBtn');
+    if (!toggle || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const enabled = Boolean(toggle.checked);
+      setNestedValue(config, ['订阅转换配置', '简洁三组模式'], enabled);
+      await writeConfig(config);
+      syncRuntimeConfig(['订阅转换配置', '简洁三组模式'], enabled);
+      showSimpleModeToast('✅ 订阅分组模式已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showSimpleModeToast('简洁模式保存失败: ' + error.message, 'error');
     } finally {
       saveBtn.disabled = false;
     }
@@ -4220,17 +4295,117 @@ function 注入自定义直连规则面板(html) {
         line-height: 1.5;
         font-size: 12px;
       }
+      #simpleModeModule .edt-switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      #simpleModeModule .edt-switch-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 600;
+        color: #334155;
+      }
+      #simpleModeModule .edt-switch-label input {
+        width: 18px;
+        height: 18px;
+        accent-color: #f6821f;
+      }
+      #simpleModeModule .edt-switch-actions {
+        display: flex;
+        gap: 10px;
+      }
+      #simpleModeModule .edt-simple-btn {
+        height: 42px;
+        min-width: 72px;
+        border: 0;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      }
+      #simpleModeModule .edt-simple-btn:hover { transform: translateY(-1px); }
+      #simpleModeModule .edt-simple-btn:disabled { opacity: .65; cursor: wait; transform: none; }
+      #simpleModeModule .edt-simple-reload {
+        color: #334155;
+        background: #eef2f7;
+      }
+      #simpleModeModule .edt-simple-save {
+        color: #fff;
+        background: linear-gradient(135deg, #faab41 0, #f6821f 100%);
+        box-shadow: 0 8px 18px rgba(246, 130, 31, .24);
+      }
+      #simpleModeModule .edt-simple-tip {
+        display: block;
+        margin-top: 8px;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 12px;
+      }
       @media (max-width: 640px) {
         #directRulesModule .edt-direct-row { grid-template-columns: 1fr; }
         #directRulesModule .edt-direct-btn { width: 100%; }
+        #simpleModeModule .edt-switch-row { align-items: stretch; }
+        #simpleModeModule .edt-switch-actions { width: 100%; }
+        #simpleModeModule .edt-simple-btn { width: 100%; }
       }
       html.dark-mode #directRulesModule .edt-direct-reload {
         color: #dbeafe;
         background: rgba(148, 163, 184, .18);
       }
       html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
+      html.dark-mode #simpleModeModule .edt-switch-label { color: #e2e8f0; }
+      html.dark-mode #simpleModeModule .edt-simple-reload {
+        color: #dbeafe;
+        background: rgba(148, 163, 184, .18);
+      }
+      html.dark-mode #simpleModeModule .edt-simple-tip { color: #94a3b8; }
     \`;
     document.head.appendChild(style);
+
+    const simplePanel = document.createElement('div');
+    simplePanel.className = 'module';
+    simplePanel.id = 'simpleModeModule';
+    simplePanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🪄 订阅分组模式
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label>简洁三组模式</label>
+          <div class="edt-switch-row">
+            <label class="edt-switch-label" for="simpleModeToggle">
+              <input type="checkbox" id="simpleModeToggle">
+              <span>仅保留 节点选择 / 自动选择 / 故障转移</span>
+            </label>
+            <div class="edt-switch-actions">
+              <button type="button" class="edt-simple-btn edt-simple-reload" id="simpleModeReloadBtn">读取</button>
+              <button type="button" class="edt-simple-btn edt-simple-save" id="simpleModeApplyBtn">保存</button>
+            </div>
+          </div>
+          <small class="edt-simple-tip">
+            开启后订阅转换将优先使用内置的简洁三组模板；关闭后恢复当前 SUBCONFIG，不会覆盖你原来的模板地址。
+          </small>
+        </div>
+      </div>\`;
+
+    const simpleTitle = simplePanel.querySelector('.module-title');
+    simpleTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(simpleTitle);
+      else simplePanel.classList.toggle('collapsed');
+    });
+    simpleTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        simpleTitle.click();
+      }
+    });
+    simplePanel.querySelector('#simpleModeReloadBtn').addEventListener('click', loadSimpleMode);
+    simplePanel.querySelector('#simpleModeApplyBtn').addEventListener('click', saveSimpleMode);
 
     const panel = document.createElement('div');
     panel.className = 'module';
@@ -4280,8 +4455,14 @@ function 注入自定义直连规则面板(html) {
     const convertModule = Array.from(document.querySelectorAll('.module-title')).find(item => item.textContent.includes('订阅转换配置'))?.closest('.module');
     const configModule = document.getElementById('preferredSubscriptionModule');
     const anchor = convertModule || configModule || document.querySelector('.card-container');
-    if (anchor && anchor.parentNode) anchor.parentNode.insertBefore(panel, anchor.nextSibling);
-    else document.body.appendChild(panel);
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(simplePanel, anchor.nextSibling);
+      anchor.parentNode.insertBefore(panel, simplePanel.nextSibling);
+    } else {
+      document.body.appendChild(simplePanel);
+      document.body.appendChild(panel);
+    }
+    loadSimpleMode();
     loadDirectRules();
   }
 
@@ -4290,6 +4471,40 @@ function 注入自定义直连规则面板(html) {
 })();
 </script>`;
 	return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, 注入内容 + '\n</body>') : html + 注入内容;
+}
+
+function 获取简洁三组订阅模板() {
+	return [
+		'[custom]',
+		'; edgetunnel simple 3-group profile',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/LocalAreaNetwork.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list',
+		'ruleset=REJECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.list',
+		'ruleset=REJECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgramAD.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyGFWlist.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyLite.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyMedia.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaCompanyIp.list',
+		'ruleset=DIRECT,[]GEOIP,CN',
+		'ruleset=节点选择,[]FINAL',
+		'',
+		'custom_proxy_group=节点选择`select`[]自动选择`[]故障转移`[]DIRECT`.*',
+		'custom_proxy_group=自动选择`url-test`.*`http://www.gstatic.com/generate_204`300,,50',
+		'custom_proxy_group=故障转移`fallback`.*`http://www.gstatic.com/generate_204`180,,50',
+		'',
+		'enable_rule_generator=true',
+		'overwrite_original_rules=true',
+	].join('\n') + '\n';
+}
+
+function 使用简洁三组模式(config_JSON = {}) {
+	return ['1', 'true', true, 1].includes(config_JSON?.订阅转换配置?.简洁三组模式);
+}
+
+function 获取订阅转换配置链接(url, config_JSON = {}) {
+	if (使用简洁三组模式(config_JSON)) return `${url.protocol}//${url.host}/subconfig/simple.ini`;
+	return config_JSON?.订阅转换配置?.SUBCONFIG || 默认订阅转换配置;
 }
 
 function 获取自定义直连规则(config_JSON = {}) {
@@ -5162,7 +5377,8 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 		},
 		订阅转换配置: {
 			SUBAPI: "https://SUBAPI.cmliussss.net",
-			SUBCONFIG: "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini",
+			SUBCONFIG: 默认订阅转换配置,
+			简洁三组模式: false,
 			SUBEMOJI: false,
 		},
 		直连规则: [],
@@ -5236,6 +5452,17 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 	config_JSON.HOST = host;
 	if (!config_JSON.HOSTS) config_JSON.HOSTS = [hostname];
 	if (env.HOST) config_JSON.HOSTS = (await 整理成数组(env.HOST)).map(h => h.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]);
+	if (!config_JSON.订阅转换配置 || typeof config_JSON.订阅转换配置 !== 'object') {
+		config_JSON.订阅转换配置 = {
+			SUBAPI: "https://SUBAPI.cmliussss.net",
+			SUBCONFIG: 默认订阅转换配置,
+			简洁三组模式: false,
+			SUBEMOJI: false,
+		};
+	}
+	if (!config_JSON.订阅转换配置.SUBAPI) config_JSON.订阅转换配置.SUBAPI = "https://SUBAPI.cmliussss.net";
+	if (!config_JSON.订阅转换配置.SUBCONFIG) config_JSON.订阅转换配置.SUBCONFIG = 默认订阅转换配置;
+	config_JSON.订阅转换配置.简洁三组模式 = 使用简洁三组模式(config_JSON);
 	config_JSON.直连规则 = 获取自定义直连规则(config_JSON);
 	config_JSON.UUID = userID;
 	if (!config_JSON.随机路径) config_JSON.随机路径 = false;
