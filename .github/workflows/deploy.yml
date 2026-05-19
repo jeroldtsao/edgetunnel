@@ -3,6 +3,10 @@ name: Deploy to Cloudflare Workers
 permissions:
   contents: read
 
+concurrency:
+  group: deploy-${{ github.ref }}-${{ github.event_name }}-${{ github.event.inputs.mode || 'push' }}
+  cancel-in-progress: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -28,6 +32,8 @@ env:
   CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN || '' }}
   KV_ID: ${{ vars.KV_ID || '' }}
   KV_NAME: ${{ vars.KV_NAME || 'EDT2' }}
+  # 需要刷新缓存并重新安装 wrangler@latest 时，手动递增这个值。
+  WRANGLER_CACHE_VERSION: '1'
   WRANGLER_SEND_METRICS: false
 
 jobs:
@@ -36,17 +42,6 @@ jobs:
     name: Cloudflare Worker
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Install Wrangler
-        run: npm install -g wrangler@latest
-
       - name: Determine workflow mode
         id: mode
         shell: bash
@@ -67,6 +62,37 @@ jobs:
           echo "当前模式: $MODE"
         env:
           INPUT_MODE: ${{ github.event.inputs.mode || '' }}
+
+      - name: Checkout
+        if: steps.mode.outputs.mode == 'deploy'
+        uses: actions/checkout@v4
+
+      - name: Cache Wrangler
+        uses: actions/cache@v4
+        with:
+          path: |
+            .npm-global
+            ~/.npm
+          key: ${{ runner.os }}-wrangler-${{ env.WRANGLER_CACHE_VERSION }}
+
+      - name: Add Wrangler bin to PATH
+        shell: bash
+        run: echo "$GITHUB_WORKSPACE/.npm-global/bin" >> "$GITHUB_PATH"
+
+      - name: Install Wrangler
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          WRANGLER_BIN="$GITHUB_WORKSPACE/.npm-global/bin/wrangler"
+
+          if [ ! -x "$WRANGLER_BIN" ]; then
+            npm install --global wrangler@latest --prefer-offline --no-audit --progress=false
+          fi
+
+          "$WRANGLER_BIN" --version
+        env:
+          NPM_CONFIG_PREFIX: ${{ github.workspace }}/.npm-global
 
       - name: Validate configuration
         shell: bash
@@ -119,12 +145,6 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
-
-      - name: Check Cloudflare auth
-        run: wrangler whoami
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Ensure KV namespace
         if: steps.mode.outputs.mode == 'bootstrap'
