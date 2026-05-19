@@ -9,8 +9,6 @@ const 上行合包目标字节 = 16 * 1024, 上行队列最大字节 = 16 * 1024
 const 下行Grain包字节 = 32 * 1024, 下行Grain尾部阈值 = 512, 下行Grain静默毫秒 = 0;
 const TCP并发拨号数 = 4;
 const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini";
-const 节点地区标签缓存 = new Map();
-const 节点地区标签缓存TTL = 1000 * 60 * 60 * 24 * 30;
 const 节点地区标签规则 = [
 	{ flag: '🇭🇰', name: '香港', codes: ['HKG'], patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
 	{ flag: '🇯🇵', name: '日本', codes: ['NRT', 'KIX', 'FUK', 'NGO'], patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
@@ -4485,7 +4483,7 @@ function 注入管理后台增强面板(html) {
               </div>
             </div>
             <small class="edt-region-tip">
-              先根据备注、常见地区前缀和优选 CSV 里的国家/城市/数据中心识别；普通纯 IP 节点会做轻量国家查询，Cloudflare Anycast 查询结果会忽略，自动优选节点会保留原优选名称。
+              先根据备注、常见地区前缀和优选 CSV 里的国家/城市/数据中心识别；不再对 Cloudflare 优选 IP 做实时 GeoIP，避免误判美国和拖慢订阅更新。
             </small>
           </div>
         </div>
@@ -4697,95 +4695,11 @@ function 获取自动优选节点备注信息(remark = '') {
 	};
 }
 
-function 是否通用优选节点备注(remark = '') {
-	return /^(?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选)\b/i.test(String(remark || '').trim());
-}
-
 function 是否IP地址(host = '') {
 	const 值 = String(host || '').trim().replace(/^\[|\]$/g, '');
 	if (!值) return false;
 	if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(值)) return true;
 	return /^[0-9a-f:]+$/i.test(值) && 值.includes(':');
-}
-
-function 规范化地区标签数据(countryCode = '', countryName = '') {
-	const code = String(countryCode || '').trim().toUpperCase();
-	const name = String(countryName || '').trim();
-	const 命中地区 = 获取节点地区规则(`${code} ${name}`);
-	if (命中地区) return { flag: 命中地区.flag, name: 命中地区.name, code };
-	if (!code || code.length !== 2) return null;
-	const flag = String.fromCodePoint(...[...code].map(char => 127397 + char.charCodeAt(0)));
-	return { flag, name: name || code, code };
-}
-
-function 是否CloudflareGeoIP结果(geo = {}) {
-	const asn = String(geo?.connection?.asn || geo?.asn || '').replace(/^AS/i, '').trim();
-	if (asn === '13335') return true;
-	const 组织文本 = [
-		geo?.connection?.org,
-		geo?.connection?.isp,
-		geo?.as,
-		geo?.asname,
-		geo?.isp,
-		geo?.org,
-	].filter(Boolean).join(' ').toLowerCase();
-	return 组织文本.includes('cloudflare');
-}
-
-async function 查询节点地区标签信息(address = '', env) {
-	const host = String(address || '').trim().replace(/^\[|\]$/g, '').toLowerCase();
-	if (!host || !是否IP地址(host)) return null;
-	const cacheKey = `geoip:${host}`;
-	const now = Date.now();
-	const memoryCache = 节点地区标签缓存.get(cacheKey);
-	if (memoryCache && now - memoryCache.updatedAt < 节点地区标签缓存TTL) return memoryCache.data;
-
-	try {
-		if (env?.KV && typeof env.KV.get === 'function') {
-			const kvCache = await env.KV.get(cacheKey, 'json');
-			if (kvCache?.updatedAt && kvCache?.data && now - kvCache.updatedAt < 节点地区标签缓存TTL) {
-				节点地区标签缓存.set(cacheKey, kvCache);
-				return kvCache.data;
-			}
-		}
-	} catch (_) { }
-
-	try {
-		const controller = new AbortController();
-		const timeout = setTimeout(() => controller.abort(), 1500);
-		const response = await fetch(`https://ipwho.is/${encodeURIComponent(host)}`, {
-			headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' },
-			signal: controller.signal,
-		});
-		clearTimeout(timeout);
-		if (!response.ok) return null;
-		const geo = await response.json();
-		if (是否CloudflareGeoIP结果(geo)) {
-			节点地区标签缓存.set(cacheKey, { updatedAt: now, data: null });
-			return null;
-		}
-		let data = 规范化地区标签数据(geo?.country_code, geo?.country);
-		if (!data && geo?.success !== false) data = 规范化地区标签数据(geo?.countryCode, geo?.countryName);
-		if (!data) {
-			const fallback = await fetch(`http://ip-api.com/json/${encodeURIComponent(host)}?fields=status,country,countryCode,as,asname,isp,org`, {
-				headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' }
-			}).then(res => res.ok ? res.json() : null).catch(() => null);
-			if (是否CloudflareGeoIP结果(fallback)) {
-				节点地区标签缓存.set(cacheKey, { updatedAt: now, data: null });
-				return null;
-			}
-			data = 规范化地区标签数据(fallback?.countryCode, fallback?.country);
-		}
-		if (!data) return null;
-		const cacheValue = { updatedAt: now, data };
-		节点地区标签缓存.set(cacheKey, cacheValue);
-		try {
-			if (env?.KV && typeof env.KV.put === 'function') await env.KV.put(cacheKey, JSON.stringify(cacheValue));
-		} catch (_) { }
-		return data;
-	} catch (_) {
-		return null;
-	}
 }
 
 async function 格式化节点地区标签(remark = '', address = '', config_JSON = {}, env) {
@@ -4796,8 +4710,7 @@ async function 格式化节点地区标签(remark = '', address = '', config_JSO
 	const 地址文本 = String(address || '').trim();
 	const 自动优选节点 = 获取自动优选节点备注信息(原始备注);
 	const 命中地区 = 获取节点地区规则(原始备注)
-		|| (!是否IP地址(地址文本) ? 获取节点地区规则(地址文本) : null)
-		|| (是否通用优选节点备注(原始备注) ? null : await 查询节点地区标签信息(address, env));
+		|| (!是否IP地址(地址文本) ? 获取节点地区规则(地址文本) : null);
 	if (!命中地区) return 自动优选节点?.label || 原始备注;
 
 	const 备注文本 = 原始备注.toLowerCase();
@@ -6191,14 +6104,24 @@ async function 请求优选API(urls, 默认端口 = '443', 超时时间 = 3000) 
 			} else {
 				const headers = lines[0].split(',').map(h => h.trim());
 				const dataLines = lines.slice(1);
-				if (headers.includes('IP地址') && headers.includes('端口') && headers.includes('数据中心')) {
-					const ipIdx = headers.indexOf('IP地址'), portIdx = headers.indexOf('端口');
-					const remarkIdx = headers.indexOf('国家') > -1 ? headers.indexOf('国家') :
-						headers.indexOf('城市') > -1 ? headers.indexOf('城市') : headers.indexOf('数据中心');
-					const tlsIdx = headers.indexOf('TLS');
+				const 规范化表头 = headers.map(h => h.toLowerCase().replace(/[\s_-]+/g, ''));
+				const 查找表头 = (候选表头, 模糊关键词 = []) => {
+					let index = 规范化表头.findIndex(h => 候选表头.includes(h));
+					if (index !== -1) return index;
+					return headers.findIndex(h => 模糊关键词.some(keyword => h.toLowerCase().includes(keyword.toLowerCase())));
+				};
+				const ipIdx = 查找表头(['ip', 'ip地址', 'ipaddress', 'address'], ['IP']);
+				const portIdx = 查找表头(['端口', 'port']);
+				const remarkIdx = 查找表头(
+					['国家', 'country', 'countrycode', '地区', 'region', '城市', 'city', '数据中心', 'datacenter', 'colo', 'colocation', 'iata', '机场'],
+					['国家', 'country', '地区', 'region', '城市', 'city', '数据中心', 'colo', '机场']
+				);
+				const tlsIdx = 查找表头(['tls']);
+				if (ipIdx !== -1 && portIdx !== -1 && remarkIdx !== -1) {
 					dataLines.forEach(line => {
 						const cols = line.split(',').map(c => c.trim());
-						if (tlsIdx !== -1 && cols[tlsIdx]?.toLowerCase() !== 'true') return;
+						if (tlsIdx !== -1 && !['1', 'true', 'yes', 'y', 'tls'].includes(String(cols[tlsIdx] || '').toLowerCase())) return;
+						if (!cols[ipIdx] || !cols[portIdx] || !cols[remarkIdx]) return;
 						const wrappedIP = IPV6_PATTERN.test(cols[ipIdx]) ? `[${cols[ipIdx]}]` : cols[ipIdx];
 						const ipItem = `${wrappedIP}:${cols[portIdx]}#${cols[remarkIdx]}`;
 						// 处理第一个数组 - 优选IP
