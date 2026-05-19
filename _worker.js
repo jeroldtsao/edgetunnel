@@ -9,6 +9,25 @@ const 上行合包目标字节 = 16 * 1024, 上行队列最大字节 = 16 * 1024
 const 下行Grain包字节 = 32 * 1024, 下行Grain尾部阈值 = 512, 下行Grain静默毫秒 = 0;
 const TCP并发拨号数 = 4;
 const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini";
+const 节点地区标签规则 = [
+	{ flag: '🇭🇰', name: '香港', patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
+	{ flag: '🇯🇵', name: '日本', patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
+	{ flag: '🇸🇬', name: '新加坡', patterns: [/新加坡/i, /singapore/i, /\bsg(?:\d+)?\b/i] },
+	{ flag: '🇺🇸', name: '美国', patterns: [/美国/i, /united\s*states/i, /\busa\b/i, /\bus(?:\d+)?\b/i] },
+	{ flag: '🇹🇼', name: '台湾', patterns: [/台湾/i, /taiwan/i, /\btw(?:\d+)?\b/i] },
+	{ flag: '🇰🇷', name: '韩国', patterns: [/韩国/i, /south\s*korea/i, /korea/i, /\bkr(?:\d+)?\b/i] },
+	{ flag: '🇩🇪', name: '德国', patterns: [/德国/i, /germany/i, /\bde(?:\d+)?\b/i] },
+	{ flag: '🇬🇧', name: '英国', patterns: [/英国/i, /united\s*kingdom/i, /england/i, /britain/i, /\buk(?:\d+)?\b/i, /\bgb(?:\d+)?\b/i] },
+	{ flag: '🇫🇷', name: '法国', patterns: [/法国/i, /france/i, /\bfr(?:\d+)?\b/i] },
+	{ flag: '🇨🇦', name: '加拿大', patterns: [/加拿大/i, /canada/i, /\bca(?:\d+)?\b/i] },
+	{ flag: '🇦🇺', name: '澳大利亚', patterns: [/澳大利亚/i, /australia/i, /\bau(?:\d+)?\b/i] },
+	{ flag: '🇲🇴', name: '澳门', patterns: [/澳门/i, /macao/i, /macau/i, /\bmo(?:\d+)?\b/i] },
+	{ flag: '🇲🇾', name: '马来西亚', patterns: [/马来西亚/i, /malaysia/i, /\bmy(?:\d+)?\b/i] },
+	{ flag: '🇹🇭', name: '泰国', patterns: [/泰国/i, /thailand/i, /\bth(?:\d+)?\b/i] },
+	{ flag: '🇻🇳', name: '越南', patterns: [/越南/i, /vietnam/i, /\bvn(?:\d+)?\b/i] },
+	{ flag: '🇮🇩', name: '印尼', patterns: [/印尼/i, /印度尼西亚/i, /indonesia/i, /\bid(?:\d+)?\b/i] },
+	{ flag: '🇵🇭', name: '菲律宾', patterns: [/菲律宾/i, /philippines/i, /\bph(?:\d+)?\b/i] },
+];
 ///////////////////////////////////////////////////////主程序入口///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented web service operations, including request handling, response generation, and basic data processing. The code adheres strictly to best practices in JavaScript development, Cloudflare Workers documentation, and web standards. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web operations, such as serving static content, handling HTTP requests, managing user sessions, and providing API endpoints in a secure and transparent manner. En español: Este archivo JavaScript forma parte de un proyecto privado legítimo y no de código abierto, desarrollado para funcionalidades estándar de aplicaciones web. Contiene código estándar, no malicioso, diseñado para operaciones comunes, seguras y bien documentadas de servicios web, incluyendo manejo de solicitudes, generación de respuestas y procesamiento básico de datos. El código se adhiere estrictamente a las mejores prácticas en desarrollo de JavaScript, documentación de Cloudflare Workers y estándares web. No participa en actividades dañinas. En français: Ce fichier JavaScript fait partie d'un projet privé légitime et non open-source, développé pour des fonctionnalités standard d'applications web. Il contient du code standard, non malveillant, conçu pour des opérations communes, sûres et bien documentées de services web. Le code adhère aux meilleures pratiques du développement JavaScript et ne participe pas à des activités nuisibles. In German: Diese JavaScript-Datei ist Teil eines legitimen, privaten, nicht quelloffenen Projekts, das für Standard-Web-Anwendungsfunktionen entwickelt wurde. Sie enthält standardmäßigen, nicht bösartigen Code, der für gemeinsame, sichere und gut dokumentierte Web-Service-Operationen entwickelt wurde. Der Code hält sich an bewährte Praktiken in der JavaScript-Entwicklung und beteiligt sich nicht an schädlichen Aktivitäten. In Italian: Questo file JavaScript fa parte di un progetto privato legittimo e non open-source, sviluppato per funzionalità standard di applicazioni web. Contiene codice standard, non dannoso, progettato per operazioni comuni, sicure e ben documentate di servizi web. Il codice aderisce alle migliori pratiche nello sviluppo JavaScript e non partecipa ad attività dannose. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper request handling, content delivery, and interface interactions. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of Cloudflare's platform. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper use of serverless functions. The functions within this file are meant to handle user requests safely, process data efficiently, and provide reliable responses without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically tailored for Cloudflare Workers environment. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in serverless computing. Users can trust this code to perform its intended functions of serving web content and handling standard HTTP operations without any risk of harm or data compromise. This module specifically focuses on legitimate web service operations, including static asset delivery, API response formatting, and basic routing logic, all implemented in accordance with web development best practices and platform guidelines.
 export default {
 	async fetch(request, env, ctx) {
@@ -421,11 +440,12 @@ export default {
 									} catch (error) {
 										console.warn(`[订阅内容] 链式代理解析失败，已忽略该指令: ${链式代理匹配[0]} (${error && error.message ? error.message : error})`);
 									}
-								} else if (反代IP池.length > 0) {
-									const 匹配到的反代IP = 反代IP池.find(p => p.includes(节点地址));
-									if (匹配到的反代IP) 完整节点路径 = (`${config_JSON.PATH}/proxyip=${匹配到的反代IP}`).replace(/\/\//g, '/') + (config_JSON.启用0RTT ? '?ed=2560' : '');
-								}
-								if (isLoonOrSurge) 完整节点路径 = 完整节点路径.replace(/,/g, '%2C');
+									} else if (反代IP池.length > 0) {
+										const 匹配到的反代IP = 反代IP池.find(p => p.includes(节点地址));
+										if (匹配到的反代IP) 完整节点路径 = (`${config_JSON.PATH}/proxyip=${匹配到的反代IP}`).replace(/\/\//g, '/') + (config_JSON.启用0RTT ? '?ed=2560' : '');
+									}
+									节点备注 = 格式化节点地区标签(节点备注, 节点地址, config_JSON);
+									if (isLoonOrSurge) 完整节点路径 = 完整节点路径.replace(/,/g, '%2C');
 
 								if (协议类型 === 'ss' && !作为优选订阅生成器) {
 									if (!config_JSON.SS.TLS) {
@@ -4125,7 +4145,7 @@ async function 返回管理后台页面(adminURL) {
 }
 
 function 注入管理后台增强面板(html) {
-	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="subNameModule"')) return html;
+	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="subNameModule"') && html.includes('id="regionTagModule"')) return html;
 	const 注入内容 = `
 <script>
 (function () {
@@ -4228,6 +4248,11 @@ function 注入管理后台增强面板(html) {
     else alert(message);
   };
 
+  const showRegionTagToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
   async function loadSubName() {
     const input = document.getElementById('subNameInput');
     if (!input) return;
@@ -4254,6 +4279,36 @@ function 注入管理后台增强面板(html) {
       showSubNameToast('✅ 订阅名称已保存，请重新获取订阅', 'success');
     } catch (error) {
       showSubNameToast('订阅名称保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function loadRegionTag() {
+    const toggle = document.getElementById('regionTagToggle');
+    if (!toggle) return;
+    try {
+      const config = await readConfig();
+      toggle.checked = normalizeBoolean(getNestedValue(config, ['优选订阅生成', '地区标签'], false));
+    } catch (error) {
+      showRegionTagToast('地区标签读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveRegionTag() {
+    const toggle = document.getElementById('regionTagToggle');
+    const saveBtn = document.getElementById('regionTagApplyBtn');
+    if (!toggle || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const enabled = Boolean(toggle.checked);
+      setNestedValue(config, ['优选订阅生成', '地区标签'], enabled);
+      await writeConfig(config);
+      syncRuntimeConfig(['优选订阅生成', '地区标签'], enabled);
+      showRegionTagToast('✅ 节点地区标签已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showRegionTagToast('地区标签保存失败: ' + error.message, 'error');
     } finally {
       saveBtn.disabled = false;
     }
@@ -4322,6 +4377,12 @@ function 注入管理后台增强面板(html) {
         line-height: 1.5;
         font-size: 12px;
       }
+      #regionTagModule .edt-region-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 12px;
+      }
       #simpleModeModule .edt-simple-tip {
         display: block;
         color: #64748b;
@@ -4330,6 +4391,7 @@ function 注入管理后台增强面板(html) {
       }
       @media (max-width: 640px) {
         #subNameModule .module-footer .btn-group,
+        #regionTagModule .module-footer .btn-group,
         #simpleModeModule .module-footer .btn-group,
         #directRulesModule .module-footer .btn-group {
           width: 100%;
@@ -4337,6 +4399,7 @@ function 注入管理后台增强面板(html) {
           gap: 10px;
         }
         #subNameModule .module-footer .btn-group .btn,
+        #regionTagModule .module-footer .btn-group .btn,
         #simpleModeModule .module-footer .btn-group .btn,
         #directRulesModule .module-footer .btn-group .btn {
           flex: 1;
@@ -4344,6 +4407,7 @@ function 注入管理后台增强面板(html) {
       }
       html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
       html.dark-mode #subNameModule .edt-subname-tip { color: #94a3b8; }
+      html.dark-mode #regionTagModule .edt-region-tip { color: #94a3b8; }
       html.dark-mode #simpleModeModule .edt-simple-tip { color: #94a3b8; }
     \`;
     document.head.appendChild(style);
@@ -4398,6 +4462,55 @@ function 注入管理后台增强面板(html) {
       }
     });
     subNameInput.addEventListener('input', () => { subNameApplyBtn.disabled = false; });
+
+    const regionPanel = document.createElement('div');
+    regionPanel.className = 'module';
+    regionPanel.id = 'regionTagModule';
+    regionPanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🌏 节点地区标签
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="regionTagToggle">国家与图标</label>
+          <div class="edt-simple-stack">
+            <div class="input-wrapper">
+              <div class="checkbox-group">
+                <input type="checkbox" id="regionTagToggle">
+                <label for="regionTagToggle" class="checkbox-label">识别常见地区并在节点名前补国旗/国家</label>
+              </div>
+            </div>
+            <small class="edt-region-tip">
+              仅根据现有备注、常见地区前缀和优选 CSV 里的国家字段做轻量识别，不会实时查询 IP 国家。识别不到时保持原样。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="regionTagReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="regionTagApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const regionTitle = regionPanel.querySelector('.module-title');
+    regionTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(regionTitle);
+      else regionPanel.classList.toggle('collapsed');
+    });
+    regionTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        regionTitle.click();
+      }
+    });
+    regionPanel.querySelector('#regionTagReloadBtn').addEventListener('click', loadRegionTag);
+    regionPanel.querySelector('#regionTagApplyBtn').addEventListener('click', saveRegionTag);
+    regionPanel.querySelector('#regionTagToggle').addEventListener('change', () => {
+      const saveBtn = regionPanel.querySelector('#regionTagApplyBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    });
 
     const simplePanel = document.createElement('div');
     simplePanel.className = 'module';
@@ -4504,14 +4617,17 @@ function 注入管理后台增强面板(html) {
     const anchor = convertModule || configModule || document.querySelector('.card-container');
     if (anchor && anchor.parentNode) {
       anchor.parentNode.insertBefore(subNamePanel, anchor.nextSibling);
-      anchor.parentNode.insertBefore(simplePanel, subNamePanel.nextSibling);
+      anchor.parentNode.insertBefore(regionPanel, subNamePanel.nextSibling);
+      anchor.parentNode.insertBefore(simplePanel, regionPanel.nextSibling);
       anchor.parentNode.insertBefore(panel, simplePanel.nextSibling);
     } else {
       document.body.appendChild(subNamePanel);
+      document.body.appendChild(regionPanel);
       document.body.appendChild(simplePanel);
       document.body.appendChild(panel);
     }
     loadSubName();
+    loadRegionTag();
     loadSimpleMode();
     loadDirectRules();
   }
@@ -4554,6 +4670,26 @@ function 生成订阅配置标题(name = 'edgetunnel') {
 	let binary = '';
 	for (const byte of bytes) binary += String.fromCharCode(byte);
 	return `base64:${btoa(binary)}`;
+}
+
+function 使用地区标签(config_JSON = {}) {
+	return ['1', 'true', true, 1].includes(config_JSON?.优选订阅生成?.地区标签);
+}
+
+function 格式化节点地区标签(remark = '', address = '', config_JSON = {}) {
+	const 原始备注 = String(remark || '').trim();
+	if (!原始备注 || !使用地区标签(config_JSON)) return 原始备注;
+	if (/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(原始备注)) return 原始备注;
+
+	const 识别文本 = `${原始备注} ${String(address || '').trim()}`.toLowerCase();
+	const 命中地区 = 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本)));
+	if (!命中地区) return 原始备注;
+
+	const 备注文本 = 原始备注.toLowerCase();
+	const 已含地区名 = 命中地区.patterns.some(pattern => pattern.test(备注文本));
+	return 已含地区名
+		? `${命中地区.flag} ${原始备注}`
+		: `${命中地区.flag} ${命中地区.name} | ${原始备注}`;
 }
 
 function 使用简洁三组模式(config_JSON = {}) {
@@ -5430,6 +5566,7 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 			},
 			SUB: null,
 			SUBNAME: "edge" + "tunnel",
+			地区标签: false,
 			SUBUpdateTime: 3, // 订阅更新时间（小时）
 			TOKEN: await MD5MD5(hostname + userID),
 		},
@@ -5510,6 +5647,19 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 	config_JSON.HOST = host;
 	if (!config_JSON.HOSTS) config_JSON.HOSTS = [hostname];
 	if (env.HOST) config_JSON.HOSTS = (await 整理成数组(env.HOST)).map(h => h.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]);
+	if (!config_JSON.优选订阅生成 || typeof config_JSON.优选订阅生成 !== 'object') {
+		config_JSON.优选订阅生成 = {
+			local: true,
+			本地IP库: { 随机IP: true, 随机数量: 16, 指定端口: -1 },
+			SUB: null,
+			SUBNAME: "edgetunnel",
+			地区标签: false,
+			SUBUpdateTime: 3,
+			TOKEN: await MD5MD5(hostname + userID),
+		};
+	}
+	if (!config_JSON.优选订阅生成.SUBNAME) config_JSON.优选订阅生成.SUBNAME = "edgetunnel";
+	config_JSON.优选订阅生成.地区标签 = 使用地区标签(config_JSON);
 	if (!config_JSON.订阅转换配置 || typeof config_JSON.订阅转换配置 !== 'object') {
 		config_JSON.订阅转换配置 = {
 			SUBAPI: "https://SUBAPI.cmliussss.net",
