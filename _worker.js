@@ -4125,8 +4125,8 @@ function 注入自定义直连规则面板(html) {
     .filter(Boolean))];
 
   const formatDirectRules = (value) => {
-    if (Array.isArray(value)) return value.join('\\n');
-    return parseDirectRules(value).join('\\n');
+    if (Array.isArray(value)) return value.join(',');
+    return parseDirectRules(value).join(',');
   };
 
   const showDirectRulesToast = (message, type) => {
@@ -4149,7 +4149,7 @@ function 注入自定义直连规则面板(html) {
 
   async function saveDirectRules() {
     const input = document.getElementById('directRulesInput');
-    const saveBtn = document.getElementById('saveDirectRulesBtn');
+    const saveBtn = document.getElementById('directRulesApplyBtn');
     if (!input || !saveBtn) return;
     saveBtn.disabled = true;
     try {
@@ -4164,7 +4164,7 @@ function 注入自定义直连规则面板(html) {
         body: JSON.stringify(config)
       });
       if (!saveResponse.ok) throw new Error(await saveResponse.text());
-      input.value = rules.join('\\n');
+      input.value = rules.join(',');
       try {
         currentConfig['直连规则'] = rules;
         originalConfig['直连规则'] = rules;
@@ -4179,8 +4179,61 @@ function 注入自定义直连规则面板(html) {
 
   function insertDirectRulesPanel() {
     if (document.getElementById('directRulesModule')) return;
+    const style = document.createElement('style');
+    style.textContent = \`
+      #directRulesModule .edt-direct-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 10px;
+        align-items: center;
+      }
+      #directRulesInput {
+        width: 100%;
+        min-height: 42px;
+        height: 42px;
+        padding: 0 14px;
+      }
+      #directRulesModule .edt-direct-btn {
+        height: 42px;
+        min-width: 72px;
+        border: 0;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      }
+      #directRulesModule .edt-direct-btn:hover { transform: translateY(-1px); }
+      #directRulesModule .edt-direct-btn:disabled { opacity: .65; cursor: wait; transform: none; }
+      #directRulesModule .edt-direct-reload {
+        color: #334155;
+        background: #eef2f7;
+      }
+      #directRulesModule .edt-direct-save {
+        color: #fff;
+        background: linear-gradient(135deg, #faab41 0, #f6821f 100%);
+        box-shadow: 0 8px 18px rgba(246, 130, 31, .24);
+      }
+      #directRulesModule .edt-direct-tip {
+        display: block;
+        margin-top: 8px;
+        color: #64748b;
+        line-height: 1.5;
+        font-size: 12px;
+      }
+      @media (max-width: 640px) {
+        #directRulesModule .edt-direct-row { grid-template-columns: 1fr; }
+        #directRulesModule .edt-direct-btn { width: 100%; }
+      }
+      html.dark-mode #directRulesModule .edt-direct-reload {
+        color: #dbeafe;
+        background: rgba(148, 163, 184, .18);
+      }
+      html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
+    \`;
+    document.head.appendChild(style);
+
     const panel = document.createElement('div');
-    panel.className = 'module collapsed';
+    panel.className = 'module';
     panel.id = 'directRulesModule';
     panel.innerHTML = \`
       <div class="module-title" role="button" tabindex="0">
@@ -4189,15 +4242,15 @@ function 注入自定义直连规则面板(html) {
       </div>
       <div class="module-content">
         <div class="form-group">
-          <label for="directRulesInput">域名关键词</label>
-          <textarea id="directRulesInput" title="订阅直连域名关键词" rows="5" placeholder="m-team&#10;lbx"></textarea>
-          <small style="display:block;margin-top:8px;color:#64748b;line-height:1.6;">
-            每行一个或用逗号分隔。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
+          <label for="directRulesInput">直连关键词</label>
+          <div class="edt-direct-row">
+            <input type="text" id="directRulesInput" title="订阅直连域名关键词" placeholder="m-team,lbx">
+            <button type="button" class="edt-direct-btn edt-direct-reload" id="directRulesReloadBtn">读取</button>
+            <button type="button" class="edt-direct-btn edt-direct-save" id="directRulesApplyBtn">保存</button>
+          </div>
+          <small class="edt-direct-tip">
+            逗号分隔即可。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
           </small>
-        </div>
-        <div class="module-footer">
-          <button type="button" class="btn btn-secondary" id="reloadDirectRulesBtn">重新读取</button>
-          <button type="button" class="btn btn-primary" id="saveDirectRulesBtn">保存</button>
         </div>
       </div>\`;
 
@@ -4212,8 +4265,17 @@ function 注入自定义直连规则面板(html) {
         title.click();
       }
     });
-    panel.querySelector('#reloadDirectRulesBtn').addEventListener('click', loadDirectRules);
-    panel.querySelector('#saveDirectRulesBtn').addEventListener('click', saveDirectRules);
+    const input = panel.querySelector('#directRulesInput');
+    const applyBtn = panel.querySelector('#directRulesApplyBtn');
+    panel.querySelector('#directRulesReloadBtn').addEventListener('click', loadDirectRules);
+    applyBtn.addEventListener('click', saveDirectRules);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveDirectRules();
+      }
+    });
+    input.addEventListener('input', () => { applyBtn.disabled = false; });
 
     const convertModule = Array.from(document.querySelectorAll('.module-title')).find(item => item.textContent.includes('订阅转换配置'))?.closest('.module');
     const configModule = document.getElementById('preferredSubscriptionModule');
