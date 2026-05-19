@@ -26,6 +26,10 @@ on:
         required: false
         default: 'EDT2'
         type: string
+      custom_domain:
+        description: '自定义域名（如 vless.example.com）'
+        required: false
+        type: string
 
   # 推送到 main 分支时自动部署
   push:
@@ -53,17 +57,26 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install wrangler
-        run: npm install -g wrangler
+      - name: Install dependencies
+        run: |
+          npm install -g wrangler
+          # 安装 jq 用于 JSON 处理
+          sudo apt-get install -y jq curl
 
       - name: Create Pages Project (if not exists)
+        id: create_project
         run: |
           echo "检查 Pages 项目是否存在..."
-          if ! wrangler pages project list | grep -q "${{ env.PROJECT_NAME }}"; then
+          PROJECT_LIST=$(wrangler pages project list --json 2>/dev/null || echo "[]")
+          PROJECT_EXISTS=$(echo "$PROJECT_LIST" | jq -r '.[] | select(.name == "${{ env.PROJECT_NAME }}") | .name' || echo "")
+
+          if [ -z "$PROJECT_EXISTS" ]; then
             echo "创建新的 Pages 项目: ${{ env.PROJECT_NAME }}"
             wrangler pages project create "${{ env.PROJECT_NAME }}" --production-branch=main || true
+            echo "project_created=true" >> $GITHUB_OUTPUT
           else
             echo "Pages 项目已存在: ${{ env.PROJECT_NAME }}"
+            echo "project_created=false" >> $GITHUB_OUTPUT
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -77,12 +90,12 @@ jobs:
           echo "检查 KV 命名空间是否存在..."
 
           # 获取现有 KV 列表
-          KV_LIST=$(wrangler kv namespace list --json)
+          KV_LIST=$(wrangler kv namespace list --json 2>/dev/null || echo "[]")
           KV_EXISTS=$(echo "$KV_LIST" | jq -r '.[] | select(.title == "'$KV_NAME'") | .id' || echo "")
 
           if [ -z "$KV_EXISTS" ]; then
             echo "创建新的 KV 命名空间: $KV_NAME"
-            KV_RESULT=$(wrangler kv namespace create "$KV_NAME" --json)
+            KV_RESULT=$(wrangler kv namespace create "$KV_NAME" --json 2>/dev/null)
             KV_ID=$(echo "$KV_RESULT" | jq -r '.id')
             echo "KV_ID=$KV_ID" >> $GITHUB_OUTPUT
             echo "创建成功，KV ID: $KV_ID"
@@ -100,8 +113,14 @@ jobs:
           echo "绑定 KV 命名空间到 Pages 项目..."
           KV_ID="${{ steps.create_kv.outputs.KV_ID }}"
 
-          # 使用 Cloudflare API 绑定 KV
-          curl -X PUT \
+          # 获取当前配置
+          CURRENT_CONFIG=$(curl -s \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          # 合并 KV 绑定配置
+          curl -s -X PUT \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
@@ -116,35 +135,116 @@ jobs:
                   ]
                 }
               }
-            }'
+            }' | jq -r '.success'
 
           echo "KV 绑定完成"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Set ADMIN Environment Variable
+      - name: Set Environment Variables
         run: |
-          echo "设置 ADMIN 环境变量..."
+          echo "设置环境变量..."
+
+          # 构建环境变量配置
+          ENV_VARS='{}'
+
+          # ADMIN 密码（必需）
+          ENV_VARS=$(echo "$ENV_VARS" | jq --arg pwd "${{ secrets.ADMIN_PASSWORD }}" '.ADMIN = {"value": $pwd}')
+
+          # 可选：UUID
+          if [ -n "${{ secrets.UUID }}" ]; then
+            ENV_VARS=$(echo "$ENV_VARS" | jq --arg uuid "${{ secrets.UUID }}" '.UUID = {"value": $uuid}')
+          fi
+
+          # 可选：PROXYIP
+          if [ -n "${{ secrets.PROXYIP }}" ]; then
+            ENV_VARS=$(echo "$ENV_VARS" | jq --arg proxy "${{ secrets.PROXYIP }}" '.PROXYIP = {"value": $proxy}')
+          fi
+
+          # 可选：KEY（快速订阅密钥）
+          if [ -n "${{ secrets.KEY }}" ]; then
+            ENV_VARS=$(echo "$ENV_VARS" | jq --arg key "${{ secrets.KEY }}" '.KEY = {"value": $key}')
+          fi
 
           # 使用 Cloudflare API 设置环境变量
-          curl -X PATCH \
+          curl -s -X PATCH \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            --data '{
-              "deployment_configs": {
-                "production": {
-                  "env_vars": {
-                    "ADMIN": {
-                      "value": "${{ secrets.ADMIN_PASSWORD }}"
-                    }
-                  }
-                }
-              }
-            }'
+            --data "{\"deployment_configs\":{\"production\":{\"env_vars\":$ENV_VARS}}}" | jq -r '.success'
 
-          echo "ADMIN 环境变量已设置"
+          echo "环境变量已设置: ADMIN${{ secrets.UUID && ', UUID' }}${{ secrets.PROXYIP && ', PROXYIP' }}${{ secrets.KEY && ', KEY' }}"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Bind Custom Domain
+        id: bind_domain
+        if: ${{ github.event.inputs.custom_domain }}
+        run: |
+          DOMAIN="${{ github.event.inputs.custom_domain }}"
+          echo "检查域名: $DOMAIN"
+
+          # 获取域名的 Zone 信息
+          ZONE_INFO=$(curl -s \
+            "https://api.cloudflare.com/client/v4/zones?name=$(echo $DOMAIN | cut -d'.' -f2-)" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.result[0].id // empty')
+          ZONE_STATUS=$(echo "$ZONE_INFO" | jq -r '.result[0].status // empty')
+
+          if [ -z "$ZONE_ID" ]; then
+            echo "::warning::域名 $(echo $DOMAIN | cut -d'.' -f2-) 未托管在 Cloudflare，请先添加域名到 Cloudflare"
+            echo "domain_bound=false" >> $GITHUB_OUTPUT
+            echo "domain_error=域名未托管在 Cloudflare" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Zone ID: $ZONE_ID, Status: $ZONE_STATUS"
+
+          # 检查域名是否已绑定
+          DOMAIN_LIST=$(curl -s \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/domains" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+
+          DOMAIN_EXISTS=$(echo "$DOMAIN_LIST" | jq -r '.result[] | select(.name == "'$DOMAIN'") | .name' || echo "")
+
+          if [ -n "$DOMAIN_EXISTS" ]; then
+            echo "域名已绑定: $DOMAIN"
+            echo "domain_bound=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 绑定域名到 Pages 项目
+          BIND_RESULT=$(curl -s -X POST \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/domains" \
+            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data "{\"name\":\"$DOMAIN\"}")
+
+          BIND_SUCCESS=$(echo "$BIND_RESULT" | jq -r '.success')
+
+          if [ "$BIND_SUCCESS" = "true" ]; then
+            echo "✅ 域名绑定成功: $DOMAIN"
+
+            # 添加 CNAME 记录（如果需要）
+            CNAME_TARGET="${{ env.PROJECT_NAME }}.pages.dev"
+            curl -s -X POST \
+              "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              --data "{\"type\":\"CNAME\",\"name\":\"$(echo $DOMAIN | cut -d'.' -f1)","content\":\"$CNAME_TARGET\",\"ttl\":1,\"proxied\":true}" | jq -r '.success'
+
+            echo "domain_bound=true" >> $GITHUB_OUTPUT
+          else
+            ERROR_MSG=$(echo "$BIND_RESULT" | jq -r '.errors[0].message // "未知错误"')
+            echo "::warning::域名绑定失败: $ERROR_MSG"
+            echo "domain_bound=false" >> $GITHUB_OUTPUT
+            echo "domain_error=$ERROR_MSG" >> $GITHUB_OUTPUT
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -163,9 +263,20 @@ jobs:
           echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
           echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
           echo "| 📄 项目名称 | ${{ env.PROJECT_NAME }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🌐 访问地址 | https://${{ env.PROJECT_NAME }}.pages.dev |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔧 管理后台 | https://${{ env.PROJECT_NAME }}.pages.dev/admin |" >> $GITHUB_STEP_SUMMARY
-          if [ -n "${{ steps.create_kv.outputs.KV_ID }}" ]; then
-            echo "| 🗄️ KV 绑定 | 已绑定 (ID: ${{ steps.create_kv.outputs.KV_ID }}) |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🌐 默认地址 | https://${{ env.PROJECT_NAME }}.pages.dev |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.bind_domain.outputs.domain_bound }}" = "true" ]; then
+            echo "| 🌐 自定义域名 | https://${{ github.event.inputs.custom_domain }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔧 管理后台 | https://${{ github.event.inputs.custom_domain }}/admin |" >> $GITHUB_STEP_SUMMARY
+          elif [ -n "${{ steps.bind_domain.outputs.domain_error }}" ]; then
+            echo "| ⚠️ 域名绑定 | ${{ steps.bind_domain.outputs.domain_error }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔧 管理后台 | https://${{ env.PROJECT_NAME }}.pages.dev/admin |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| 🔧 管理后台 | https://${{ env.PROJECT_NAME }}.pages.dev/admin |" >> $GITHUB_STEP_SUMMARY
           fi
-          echo "| 🔐 ADMIN | 已配置 |" >> $GITHUB_STEP_SUMMARY
+
+          if [ -n "${{ steps.create_kv.outputs.KV_ID }}" ]; then
+            echo "| 🗄️ KV 绑定 | 已绑定 |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "| 🔐 环境变量 | ADMIN 已配置 |" >> $GITHUB_STEP_SUMMARY
