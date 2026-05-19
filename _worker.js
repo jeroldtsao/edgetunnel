@@ -4722,14 +4722,21 @@ async function 查询节点地区标签信息(address = '', env) {
 	try {
 		const controller = new AbortController();
 		const timeout = setTimeout(() => controller.abort(), 1500);
-		const response = await fetch(`https://api.ip.sb/geoip/${encodeURIComponent(host)}`, {
+		const response = await fetch(`https://ipwho.is/${encodeURIComponent(host)}`, {
 			headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' },
 			signal: controller.signal,
 		});
 		clearTimeout(timeout);
 		if (!response.ok) return null;
 		const geo = await response.json();
-		const data = 规范化地区标签数据(geo?.country_code, geo?.country);
+		let data = 规范化地区标签数据(geo?.country_code, geo?.country);
+		if (!data && geo?.success !== false) data = 规范化地区标签数据(geo?.countryCode, geo?.countryName);
+		if (!data) {
+			const fallback = await fetch(`http://ip-api.com/json/${encodeURIComponent(host)}?fields=status,country,countryCode`, {
+				headers: { 'User-Agent': 'edgetunnel-region-tag/1.0' }
+			}).then(res => res.ok ? res.json() : null).catch(() => null);
+			data = 规范化地区标签数据(fallback?.countryCode, fallback?.country);
+		}
 		if (!data) return null;
 		const cacheValue = { updatedAt: now, data };
 		节点地区标签缓存.set(cacheKey, cacheValue);
