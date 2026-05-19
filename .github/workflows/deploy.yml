@@ -124,17 +124,36 @@ jobs:
       - name: Set Environment Variables
         run: |
           echo "设置环境变量..."
-          ENV_JSON='{"ADMIN":{"value":"${{ secrets.ADMIN_PASSWORD }}"}}'
-          [ -n "${{ secrets.UUID }}" ] && ENV_JSON=$(echo "$ENV_JSON" | jq '.UUID={"value":"${{ secrets.UUID }}"}}')
-          [ -n "${{ secrets.PROXYIP }}" ] && ENV_JSON=$(echo "$ENV_JSON" | jq '.PROXYIP={"value":"${{ secrets.PROXYIP }}"}}')
-          [ -n "${{ secrets.KEY }}" ] && ENV_JSON=$(echo "$ENV_JSON" | jq '.KEY={"value":"${{ secrets.KEY }}"}}')
 
-          curl -s -X PATCH \
+          # 使用 jq 正确构造 JSON
+          ENV_JSON=$(jq -n \
+            --arg admin "${{ secrets.ADMIN_PASSWORD }}" \
+            '{"ADMIN":{"value":$admin}}')
+
+          # 添加可选变量
+          if [ -n "${{ secrets.UUID }}" ]; then
+            ENV_JSON=$(echo "$ENV_JSON" | jq --arg uuid "${{ secrets.UUID }}" '.UUID={"value":$uuid}')
+          fi
+          if [ -n "${{ secrets.PROXYIP }}" ]; then
+            ENV_JSON=$(echo "$ENV_JSON" | jq --arg proxy "${{ secrets.PROXYIP }}" '.PROXYIP={"value":$proxy}')
+          fi
+          if [ -n "${{ secrets.KEY }}" ]; then
+            ENV_JSON=$(echo "$ENV_JSON" | jq --arg key "${{ secrets.KEY }}" '.KEY={"value":$key}')
+          fi
+
+          echo "发送配置..."
+          RESULT=$(curl -s -X PATCH \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":$ENV_JSON}}" \
-            | jq -r '.success' && echo "✅ 环境变量已设置"
+            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":$ENV_JSON}}}")
+
+          if echo "$RESULT" | jq -e '.success' > /dev/null; then
+            echo "✅ 环境变量已设置"
+          else
+            echo "⚠️ 环境变量设置失败"
+            echo "$RESULT" | jq '.errors'
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -150,7 +169,7 @@ jobs:
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/domains" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
 
-          if echo "$DOMAIN_LIST" | jq -e '.result[] | select(.name=="${{ env.CUSTOM_DOMAIN }}")' > /dev/null; then
+          if echo "$DOMAIN_LIST" | jq -e '.result[] | select(.name=="${{ env.CUSTOM_DOMAIN }}")' > /dev/null 2>&1; then
             echo "✅ 域名已绑定: ${{ env.CUSTOM_DOMAIN }}"
           else
             echo "绑定域名: ${{ env.CUSTOM_DOMAIN }}"
@@ -160,26 +179,12 @@ jobs:
               -H "Content-Type: application/json" \
               -d '{"name":"${{ env.CUSTOM_DOMAIN }}"}')
 
-            if echo "$BIND_RESULT" | jq -e '.success' > /dev/null; then
-              echo "✅ 域名绑定成功"
-
-              # 添加 CNAME 记录
-              ZONE=$(echo "${{ env.CUSTOM_DOMAIN }}" | rev | cut -d'.' -f1-2 | rev)
-              ZONE_ID=$(curl -s "https://api.cloudflare.com/client/v4/zones?name=$ZONE" \
-                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-                | jq -r '.result[0].id')
-
-              if [ -n "$ZONE_ID" ]; then
-                SUB=$(echo "${{ env.CUSTOM_DOMAIN }}" | sed "s/\.$ZONE//")
-                curl -s -X POST \
-                  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-                  -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-                  -H "Content-Type: application/json" \
-                  -d '{"type":"CNAME","name":"$SUB","content":"${{ env.PROJECT_NAME }}.pages.dev","ttl":1,"proxied":true}' \
-                  | jq -r '.success' && echo "✅ CNAME 记录已添加" || echo "⚠️ CNAME 可能已存在"
-              fi
+            if echo "$BIND_RESULT" | jq -e '.success' > /dev/null 2>&1; then
+              echo "✅ 域名绑定成功，请在 Cloudflare 控制台检查 DNS 状态"
             else
-              echo "⚠️ 域名绑定失败，可能域名未托管在 Cloudflare"
+              ERROR=$(echo "$BIND_RESULT" | jq -r '.errors[0].message // "绑定失败"')
+              echo "::warning::域名绑定失败: $ERROR"
+              echo "提示：请确保域名已托管在 Cloudflare，并手动添加 CNAME 记录指向 ${PROJECT_NAME}.pages.dev"
             fi
           fi
         env:
