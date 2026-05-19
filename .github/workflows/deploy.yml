@@ -41,7 +41,7 @@ jobs:
 
       - name: Configure wrangler
         run: |
-          mkdir -p ~/.wrangler
+          mkdir -p ~/.wrangler/config
           cat > ~/.wrangler/config/default.toml << EOF
           account_id = "${{ secrets.CLOUDFLARE_ACCOUNT_ID }}"
           EOF
