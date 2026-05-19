@@ -305,6 +305,7 @@ export default {
 						const ua = UA.toLowerCase();
 						const responseHeaders = {
 							"content-type": "text/plain; charset=utf-8",
+							"Profile-Title": 生成订阅配置标题(config_JSON?.优选订阅生成?.SUBNAME || 'edgetunnel'),
 							"Profile-Update-Interval": config_JSON.优选订阅生成.SUBUpdateTime,
 							"Profile-web-page-url": url.protocol + '//' + url.host + '/admin',
 							"Cache-Control": "no-store",
@@ -4124,7 +4125,7 @@ async function 返回管理后台页面(adminURL) {
 }
 
 function 注入管理后台增强面板(html) {
-	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"')) return html;
+	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="subNameModule"')) return html;
 	const 注入内容 = `
 <script>
 (function () {
@@ -4222,6 +4223,42 @@ function 注入管理后台增强面板(html) {
     else alert(message);
   };
 
+  const showSubNameToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  async function loadSubName() {
+    const input = document.getElementById('subNameInput');
+    if (!input) return;
+    try {
+      const config = await readConfig();
+      input.value = String(getNestedValue(config, ['优选订阅生成', 'SUBNAME'], 'edgetunnel') || 'edgetunnel');
+    } catch (error) {
+      showSubNameToast('订阅名称读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveSubName() {
+    const input = document.getElementById('subNameInput');
+    const saveBtn = document.getElementById('subNameApplyBtn');
+    if (!input || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const subName = String(input.value || '').trim() || 'edgetunnel';
+      setNestedValue(config, ['优选订阅生成', 'SUBNAME'], subName);
+      await writeConfig(config);
+      input.value = subName;
+      syncRuntimeConfig(['优选订阅生成', 'SUBNAME'], subName);
+      showSubNameToast('✅ 订阅名称已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showSubNameToast('订阅名称保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
   async function loadSimpleMode() {
     const toggle = document.getElementById('simpleModeToggle');
     if (!toggle) return;
@@ -4256,115 +4293,111 @@ function 注入管理后台增强面板(html) {
     if (document.getElementById('directRulesModule')) return;
     const style = document.createElement('style');
     style.textContent = \`
-      #directRulesModule .edt-direct-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto auto;
-        gap: 10px;
-        align-items: center;
-      }
-      #directRulesInput {
+      #directRulesInput,
+      #subNameInput {
         width: 100%;
-        min-height: 42px;
-        height: 42px;
-        padding: 0 14px;
       }
-      #directRulesModule .edt-direct-btn {
-        height: 42px;
-        min-width: 72px;
-        border: 0;
-        border-radius: 10px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+      #directRulesModule .edt-direct-row,
+      #subNameModule .edt-subname-row,
+      #simpleModeModule .edt-simple-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
       }
-      #directRulesModule .edt-direct-btn:hover { transform: translateY(-1px); }
-      #directRulesModule .edt-direct-btn:disabled { opacity: .65; cursor: wait; transform: none; }
-      #directRulesModule .edt-direct-reload {
-        color: #334155;
-        background: #eef2f7;
-      }
-      #directRulesModule .edt-direct-save {
-        color: #fff;
-        background: linear-gradient(135deg, #faab41 0, #f6821f 100%);
-        box-shadow: 0 8px 18px rgba(246, 130, 31, .24);
+      #directRulesModule .input-wrapper,
+      #subNameModule .input-wrapper,
+      #simpleModeModule .input-wrapper {
+        width: 100%;
       }
       #directRulesModule .edt-direct-tip {
         display: block;
-        margin-top: 8px;
         color: #64748b;
         line-height: 1.5;
         font-size: 12px;
       }
-      #simpleModeModule .edt-switch-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      #simpleModeModule .edt-switch-label {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        font-weight: 600;
-        color: #334155;
-      }
-      #simpleModeModule .edt-switch-label input {
-        width: 18px;
-        height: 18px;
-        accent-color: #f6821f;
-      }
-      #simpleModeModule .edt-switch-actions {
-        display: flex;
-        gap: 10px;
-      }
-      #simpleModeModule .edt-simple-btn {
-        height: 42px;
-        min-width: 72px;
-        border: 0;
-        border-radius: 10px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
-      }
-      #simpleModeModule .edt-simple-btn:hover { transform: translateY(-1px); }
-      #simpleModeModule .edt-simple-btn:disabled { opacity: .65; cursor: wait; transform: none; }
-      #simpleModeModule .edt-simple-reload {
-        color: #334155;
-        background: #eef2f7;
-      }
-      #simpleModeModule .edt-simple-save {
-        color: #fff;
-        background: linear-gradient(135deg, #faab41 0, #f6821f 100%);
-        box-shadow: 0 8px 18px rgba(246, 130, 31, .24);
+      #subNameModule .edt-subname-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.5;
+        font-size: 12px;
       }
       #simpleModeModule .edt-simple-tip {
         display: block;
-        margin-top: 8px;
         color: #64748b;
         line-height: 1.6;
         font-size: 12px;
       }
       @media (max-width: 640px) {
-        #directRulesModule .edt-direct-row { grid-template-columns: 1fr; }
-        #directRulesModule .edt-direct-btn { width: 100%; }
-        #simpleModeModule .edt-switch-row { align-items: stretch; }
-        #simpleModeModule .edt-switch-actions { width: 100%; }
-        #simpleModeModule .edt-simple-btn { width: 100%; }
-      }
-      html.dark-mode #directRulesModule .edt-direct-reload {
-        color: #dbeafe;
-        background: rgba(148, 163, 184, .18);
+        #subNameModule .module-footer .btn-group,
+        #simpleModeModule .module-footer .btn-group,
+        #directRulesModule .module-footer .btn-group {
+          width: 100%;
+          display: flex;
+          gap: 10px;
+        }
+        #subNameModule .module-footer .btn-group .btn,
+        #simpleModeModule .module-footer .btn-group .btn,
+        #directRulesModule .module-footer .btn-group .btn {
+          flex: 1;
+        }
       }
       html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
-      html.dark-mode #simpleModeModule .edt-switch-label { color: #e2e8f0; }
-      html.dark-mode #simpleModeModule .edt-simple-reload {
-        color: #dbeafe;
-        background: rgba(148, 163, 184, .18);
-      }
+      html.dark-mode #subNameModule .edt-subname-tip { color: #94a3b8; }
       html.dark-mode #simpleModeModule .edt-simple-tip { color: #94a3b8; }
     \`;
     document.head.appendChild(style);
+
+    const subNamePanel = document.createElement('div');
+    subNamePanel.className = 'module';
+    subNamePanel.id = 'subNameModule';
+    subNamePanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🏷️ 订阅名称
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="subNameInput">客户端显示名称</label>
+          <div class="edt-subname-row">
+            <div class="input-wrapper">
+              <input type="text" id="subNameInput" title="订阅配置名称" placeholder="edgetunnel">
+            </div>
+            <small class="edt-subname-tip">
+              用于订阅文件名和 Profile-Title。部分客户端可能需要重新导入，或手动把原配置名称改回自动跟随。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="subNameReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="subNameApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const subNameTitle = subNamePanel.querySelector('.module-title');
+    subNameTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(subNameTitle);
+      else subNamePanel.classList.toggle('collapsed');
+    });
+    subNameTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        subNameTitle.click();
+      }
+    });
+    const subNameInput = subNamePanel.querySelector('#subNameInput');
+    const subNameApplyBtn = subNamePanel.querySelector('#subNameApplyBtn');
+    subNamePanel.querySelector('#subNameReloadBtn').addEventListener('click', loadSubName);
+    subNameApplyBtn.addEventListener('click', saveSubName);
+    subNameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveSubName();
+      }
+    });
+    subNameInput.addEventListener('input', () => { subNameApplyBtn.disabled = false; });
 
     const simplePanel = document.createElement('div');
     simplePanel.className = 'module';
@@ -4376,20 +4409,24 @@ function 注入管理后台增强面板(html) {
       </div>
       <div class="module-content">
         <div class="form-group">
-          <label>简洁三组模式</label>
-          <div class="edt-switch-row">
-            <label class="edt-switch-label" for="simpleModeToggle">
-              <input type="checkbox" id="simpleModeToggle">
-              <span>仅保留 节点选择 / 自动选择 / 故障转移</span>
-            </label>
-            <div class="edt-switch-actions">
-              <button type="button" class="edt-simple-btn edt-simple-reload" id="simpleModeReloadBtn">读取</button>
-              <button type="button" class="edt-simple-btn edt-simple-save" id="simpleModeApplyBtn">保存</button>
+          <label for="simpleModeToggle">简洁三组模式</label>
+          <div class="edt-simple-stack">
+            <div class="input-wrapper">
+              <div class="checkbox-group">
+                <input type="checkbox" id="simpleModeToggle">
+                <label for="simpleModeToggle" class="checkbox-label">仅保留 节点选择 / 自动选择 / 故障转移</label>
+              </div>
             </div>
+            <small class="edt-simple-tip">
+              开启后订阅转换将优先使用内置的简洁三组模板；关闭后恢复当前 SUBCONFIG，不会覆盖你原来的模板地址。
+            </small>
           </div>
-          <small class="edt-simple-tip">
-            开启后订阅转换将优先使用内置的简洁三组模板；关闭后恢复当前 SUBCONFIG，不会覆盖你原来的模板地址。
-          </small>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="simpleModeReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="simpleModeApplyBtn">保存</button>
+          </div>
         </div>
       </div>\`;
 
@@ -4406,6 +4443,10 @@ function 注入管理后台增强面板(html) {
     });
     simplePanel.querySelector('#simpleModeReloadBtn').addEventListener('click', loadSimpleMode);
     simplePanel.querySelector('#simpleModeApplyBtn').addEventListener('click', saveSimpleMode);
+    simplePanel.querySelector('#simpleModeToggle').addEventListener('change', () => {
+      const saveBtn = simplePanel.querySelector('#simpleModeApplyBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    });
 
     const panel = document.createElement('div');
     panel.className = 'module';
@@ -4419,13 +4460,19 @@ function 注入管理后台增强面板(html) {
         <div class="form-group">
           <label for="directRulesInput">直连关键词</label>
           <div class="edt-direct-row">
-            <input type="text" id="directRulesInput" title="订阅直连域名关键词" placeholder="m-team,lbx">
-            <button type="button" class="edt-direct-btn edt-direct-reload" id="directRulesReloadBtn">读取</button>
-            <button type="button" class="edt-direct-btn edt-direct-save" id="directRulesApplyBtn">保存</button>
+            <div class="input-wrapper">
+              <input type="text" id="directRulesInput" title="订阅直连域名关键词" placeholder="m-team,lbx">
+            </div>
+            <small class="edt-direct-tip">
+              逗号分隔即可。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
+            </small>
           </div>
-          <small class="edt-direct-tip">
-            逗号分隔即可。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
-          </small>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="directRulesReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="directRulesApplyBtn">保存</button>
+          </div>
         </div>
       </div>\`;
 
@@ -4456,12 +4503,15 @@ function 注入管理后台增强面板(html) {
     const configModule = document.getElementById('preferredSubscriptionModule');
     const anchor = convertModule || configModule || document.querySelector('.card-container');
     if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(simplePanel, anchor.nextSibling);
+      anchor.parentNode.insertBefore(subNamePanel, anchor.nextSibling);
+      anchor.parentNode.insertBefore(simplePanel, subNamePanel.nextSibling);
       anchor.parentNode.insertBefore(panel, simplePanel.nextSibling);
     } else {
+      document.body.appendChild(subNamePanel);
       document.body.appendChild(simplePanel);
       document.body.appendChild(panel);
     }
+    loadSubName();
     loadSimpleMode();
     loadDirectRules();
   }
@@ -4496,6 +4546,14 @@ function 获取简洁三组订阅模板() {
 		'enable_rule_generator=true',
 		'overwrite_original_rules=true',
 	].join('\n') + '\n';
+}
+
+function 生成订阅配置标题(name = 'edgetunnel') {
+	const title = String(name || 'edgetunnel').trim() || 'edgetunnel';
+	const bytes = new TextEncoder().encode(title);
+	let binary = '';
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return `base64:${btoa(binary)}`;
 }
 
 function 使用简洁三组模式(config_JSON = {}) {
