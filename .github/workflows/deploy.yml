@@ -21,15 +21,6 @@ on:
         required: false
         default: false
         type: boolean
-      kv_name:
-        description: 'KV 命名空间名称'
-        required: false
-        default: 'EDT2'
-        type: string
-      custom_domain:
-        description: '自定义域名（可选，留空则使用变量配置）'
-        required: false
-        type: string
 
   # 推送到 main 分支时自动部署
   push:
@@ -42,8 +33,8 @@ on:
 
 env:
   PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'edgetunnel' }}
-  # 优先使用手动输入的域名，如果没有则使用变量配置的域名
-  CUSTOM_DOMAIN: ${{ github.event.inputs.custom_domain || vars.CUSTOM_DOMAIN || '' }}
+  CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN || '' }}
+  KV_NAME: ${{ vars.KV_NAME || 'EDT2' }}
 
 jobs:
   deploy:
@@ -88,8 +79,8 @@ jobs:
         # 手动触发时勾选创建 KV，或首次部署（push触发且项目刚创建）
         if: ${{ github.event.inputs.create_kv == 'true' || (github.event_name == 'push' && steps.create_project.outputs.project_created == 'true') }}
         run: |
-          KV_NAME="${{ github.event.inputs.kv_name || vars.KV_NAME || 'EDT2' }}"
-          echo "检查 KV 命名空间是否存在..."
+          KV_NAME="${{ env.KV_NAME }}"
+          echo "检查 KV 命名空间是否存在: $KV_NAME"
 
           KV_LIST=$(wrangler kv namespace list --json 2>/dev/null || echo "[]")
           KV_EXISTS=$(echo "$KV_LIST" | jq -r '.[] | select(.title == "'$KV_NAME'") | .id' || echo "")
@@ -168,7 +159,7 @@ jobs:
 
       - name: Bind Custom Domain
         id: bind_domain
-        # 如果设置了域名（手动输入或变量），就尝试绑定
+        # 如果设置了 CUSTOM_DOMAIN 变量，就尝试绑定
         if: ${{ env.CUSTOM_DOMAIN != '' }}
         run: |
           DOMAIN="${{ env.CUSTOM_DOMAIN }}"

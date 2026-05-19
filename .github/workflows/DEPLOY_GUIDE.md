@@ -89,14 +89,14 @@
 3. 点击 `Run workflow`
 4. 配置选项：
    - **部署环境**: `production`
-   - **自动创建 KV**: `true` ✓（首次部署）
-   - **KV 名称**: `EDT2`（可自定义，留空使用变量配置）
-   - **自定义域名**: 留空则使用 `CUSTOM_DOMAIN` 变量
+   - **自动创建 KV**: `true` ✓（首次部署建议勾选）
 5. 点击 `Run workflow`
+
+域名绑定通过 `CUSTOM_DOMAIN` 变量控制，无需手动输入。
 
 #### 后续部署
 
-推送代码到 `main` 分支会自动触发部署，如果设置了 `CUSTOM_DOMAIN` 变量，每次都会自动绑定域名。
+推送代码到 `main` 分支会自动触发部署，所有配置通过 Variables 控制。
 
 ### 第五步：域名要求（自动绑定）
 
@@ -148,4 +148,4 @@
 在 GitHub Secrets 中更新 `ADMIN_PASSWORD` 值，然后重新触发部署。
 
 ### Q: 如何更换域名
-手动触发部署，填写新的自定义域名即可。
+在 GitHub Variables 中更新 `CUSTOM_DOMAIN` 值，然后重新触发部署。
