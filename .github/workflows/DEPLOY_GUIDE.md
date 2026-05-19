@@ -59,34 +59,44 @@
 | Variable 名称 | 默认值 | 说明 |
 |--------------|-------|------|
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | `edgetunnel` | Cloudflare Pages 项目名称 |
+| `CUSTOM_DOMAIN` | 无 | 自定义域名（如 `vless.example.com`），设置后每次部署自动绑定 |
+| `KV_NAME` | `EDT2` | KV 命名空间名称（首次部署时自动创建） |
 
-点击 `Variables` 标签 → `New repository variable` 添加（可选）。
+点击 `Variables` 标签 → `New repository variable` 添加。
+
+**💡 提示**：设置 `CUSTOM_DOMAIN` 变量后，每次部署都会自动检测并绑定域名，无需手动输入。
 
 ### 第四步：触发首次部署
 
-#### 首次完整部署（推荐）
+#### 方式一：设置 Variables 后自动部署（推荐）
+
+1. 在 GitHub Variables 中设置：
+   - `CUSTOM_DOMAIN`: 自定义域名（如 `vless.example.com`）
+   - `KV_NAME`: KV 名称（如 `EDT2`）
+2. 推送代码到 `main` 分支
+3. 自动部署时会：
+   - ✅ 创建 Pages 项目
+   - ✅ 自动创建 KV（首次部署）
+   - ✅ 自动绑定 KV
+   - ✅ 自动设置 ADMIN 等环境变量
+   - ✅ 自动绑定自定义域名
+   - ✅ 自动添加 CNAME 记录
+
+#### 方式二：手动触发部署
 
 1. 进入 GitHub 仓库 → `Actions`
 2. 选择 `Deploy to Cloudflare Pages`
 3. 点击 `Run workflow`
 4. 配置选项：
    - **部署环境**: `production`
-   - **自动创建 KV**: `true` ✓
-   - **KV 名称**: `EDT2`（可自定义）
-   - **自定义域名**: `vless.example.com`（可选，需域名已托管在 CF）
+   - **自动创建 KV**: `true` ✓（首次部署）
+   - **KV 名称**: `EDT2`（可自定义，留空使用变量配置）
+   - **自定义域名**: 留空则使用 `CUSTOM_DOMAIN` 变量
 5. 点击 `Run workflow`
-
-部署过程中会自动：
-- ✅ 创建 Pages 项目（如不存在）
-- ✅ 创建 KV 命名空间（如不存在）
-- ✅ 将 KV 绑定到 Pages 项目（变量名 `KV`）
-- ✅ 设置 ADMIN 等环境变量
-- ✅ 绑定自定义域名（如指定且域名已托管）
-- ✅ 自动添加 CNAME 记录
 
 #### 后续部署
 
-推送代码到 `main` 分支会自动触发部署。
+推送代码到 `main` 分支会自动触发部署，如果设置了 `CUSTOM_DOMAIN` 变量，每次都会自动绑定域名。
 
 ### 第五步：域名要求（自动绑定）
 
@@ -111,7 +121,8 @@
 2. **KV 绑定名称**：自动绑定为 `KV`（大写），符合项目要求
 3. **ADMIN 密码**：通过 `ADMIN_PASSWORD` Secret 自动设置
 4. **域名托管**：域名必须已在 Cloudflare 才能自动绑定
-5. **首次部署**：建议勾选所有选项一次性完成配置
+5. **Variables 配置**：设置 `CUSTOM_DOMAIN` 后每次部署自动绑定，无需手动输入
+6. **首次部署**：push 触发时会自动创建 KV（如果项目不存在）
 
 ## 📚 参考链接
 

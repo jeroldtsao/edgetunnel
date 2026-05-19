@@ -27,7 +27,7 @@ on:
         default: 'EDT2'
         type: string
       custom_domain:
-        description: '自定义域名（如 vless.example.com）'
+        description: '自定义域名（可选，留空则使用变量配置）'
         required: false
         type: string
 
@@ -42,6 +42,8 @@ on:
 
 env:
   PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'edgetunnel' }}
+  # 优先使用手动输入的域名，如果没有则使用变量配置的域名
+  CUSTOM_DOMAIN: ${{ github.event.inputs.custom_domain || vars.CUSTOM_DOMAIN || '' }}
 
 jobs:
   deploy:
@@ -60,7 +62,6 @@ jobs:
       - name: Install dependencies
         run: |
           npm install -g wrangler
-          # 安装 jq 用于 JSON 处理
           sudo apt-get install -y jq curl
 
       - name: Create Pages Project (if not exists)
@@ -82,14 +83,14 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      - name: Create KV Namespace (if requested)
+      - name: Create KV Namespace (if requested or first deploy)
         id: create_kv
-        if: ${{ github.event.inputs.create_kv == 'true' }}
+        # 手动触发时勾选创建 KV，或首次部署（push触发且项目刚创建）
+        if: ${{ github.event.inputs.create_kv == 'true' || (github.event_name == 'push' && steps.create_project.outputs.project_created == 'true') }}
         run: |
-          KV_NAME="${{ github.event.inputs.kv_name || 'EDT2' }}"
+          KV_NAME="${{ github.event.inputs.kv_name || vars.KV_NAME || 'EDT2' }}"
           echo "检查 KV 命名空间是否存在..."
 
-          # 获取现有 KV 列表
           KV_LIST=$(wrangler kv namespace list --json 2>/dev/null || echo "[]")
           KV_EXISTS=$(echo "$KV_LIST" | jq -r '.[] | select(.title == "'$KV_NAME'") | .id' || echo "")
 
@@ -113,13 +114,6 @@ jobs:
           echo "绑定 KV 命名空间到 Pages 项目..."
           KV_ID="${{ steps.create_kv.outputs.KV_ID }}"
 
-          # 获取当前配置
-          CURRENT_CONFIG=$(curl -s \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json")
-
-          # 合并 KV 绑定配置
           curl -s -X PUT \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
@@ -146,63 +140,57 @@ jobs:
         run: |
           echo "设置环境变量..."
 
-          # 构建环境变量配置
           ENV_VARS='{}'
-
-          # ADMIN 密码（必需）
           ENV_VARS=$(echo "$ENV_VARS" | jq --arg pwd "${{ secrets.ADMIN_PASSWORD }}" '.ADMIN = {"value": $pwd}')
 
-          # 可选：UUID
           if [ -n "${{ secrets.UUID }}" ]; then
             ENV_VARS=$(echo "$ENV_VARS" | jq --arg uuid "${{ secrets.UUID }}" '.UUID = {"value": $uuid}')
           fi
 
-          # 可选：PROXYIP
           if [ -n "${{ secrets.PROXYIP }}" ]; then
             ENV_VARS=$(echo "$ENV_VARS" | jq --arg proxy "${{ secrets.PROXYIP }}" '.PROXYIP = {"value": $proxy}')
           fi
 
-          # 可选：KEY（快速订阅密钥）
           if [ -n "${{ secrets.KEY }}" ]; then
             ENV_VARS=$(echo "$ENV_VARS" | jq --arg key "${{ secrets.KEY }}" '.KEY = {"value": $key}')
           fi
 
-          # 使用 Cloudflare API 设置环境变量
           curl -s -X PATCH \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             --data "{\"deployment_configs\":{\"production\":{\"env_vars\":$ENV_VARS}}}" | jq -r '.success'
 
-          echo "环境变量已设置: ADMIN${{ secrets.UUID && ', UUID' }}${{ secrets.PROXYIP && ', PROXYIP' }}${{ secrets.KEY && ', KEY' }}"
+          echo "环境变量已设置"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Bind Custom Domain
         id: bind_domain
-        if: ${{ github.event.inputs.custom_domain }}
+        # 如果设置了域名（手动输入或变量），就尝试绑定
+        if: ${{ env.CUSTOM_DOMAIN != '' }}
         run: |
-          DOMAIN="${{ github.event.inputs.custom_domain }}"
+          DOMAIN="${{ env.CUSTOM_DOMAIN }}"
           echo "检查域名: $DOMAIN"
 
-          # 获取域名的 Zone 信息
+          # 获取域名的 Zone 信息（支持多级子域名）
+          DOMAIN_PARTS=$(echo "$DOMAIN" | rev | cut -d'.' -f1-2 | rev)
           ZONE_INFO=$(curl -s \
-            "https://api.cloudflare.com/client/v4/zones?name=$(echo $DOMAIN | cut -d'.' -f2-)" \
+            "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN_PARTS" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json")
 
           ZONE_ID=$(echo "$ZONE_INFO" | jq -r '.result[0].id // empty')
-          ZONE_STATUS=$(echo "$ZONE_INFO" | jq -r '.result[0].status // empty')
 
           if [ -z "$ZONE_ID" ]; then
-            echo "::warning::域名 $(echo $DOMAIN | cut -d'.' -f2-) 未托管在 Cloudflare，请先添加域名到 Cloudflare"
+            echo "::warning::域名 $DOMAIN_PARTS 未托管在 Cloudflare，请先添加域名到 Cloudflare"
             echo "domain_bound=false" >> $GITHUB_OUTPUT
             echo "domain_error=域名未托管在 Cloudflare" >> $GITHUB_OUTPUT
             exit 0
           fi
 
-          echo "Zone ID: $ZONE_ID, Status: $ZONE_STATUS"
+          echo "Zone ID: $ZONE_ID"
 
           # 检查域名是否已绑定
           DOMAIN_LIST=$(curl -s \
@@ -230,13 +218,24 @@ jobs:
           if [ "$BIND_SUCCESS" = "true" ]; then
             echo "✅ 域名绑定成功: $DOMAIN"
 
-            # 添加 CNAME 记录（如果需要）
+            # 获取子域名部分（支持多级）
+            SUBDOMAIN=$(echo "$DOMAIN" | sed "s/.$DOMAIN_PARTS$/")
             CNAME_TARGET="${{ env.PROJECT_NAME }}.pages.dev"
-            curl -s -X POST \
+
+            # 添加 CNAME 记录
+            DNS_RESULT=$(curl -s -X POST \
               "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
               -H "Content-Type: application/json" \
-              --data "{\"type\":\"CNAME\",\"name\":\"$(echo $DOMAIN | cut -d'.' -f1)","content\":\"$CNAME_TARGET\",\"ttl\":1,\"proxied\":true}" | jq -r '.success'
+              --data "{\"type\":\"CNAME\",\"name\":\"$SUBDOMAIN\",\"content\":\"$CNAME_TARGET\",\"ttl\":1,\"proxied\":true}")
+
+            DNS_SUCCESS=$(echo "$DNS_RESULT" | jq -r '.success')
+            if [ "$DNS_SUCCESS" = "true" ]; then
+              echo "✅ CNAME 记录已添加: $SUBDOMAIN -> $CNAME_TARGET"
+            else
+              DNS_ERROR=$(echo "$DNS_RESULT" | jq -r '.errors[0].message // "未知错误"')
+              echo "::warning::CNAME 记录添加失败: $DNS_ERROR（可能已存在）"
+            fi
 
             echo "domain_bound=true" >> $GITHUB_OUTPUT
           else
@@ -266,8 +265,8 @@ jobs:
           echo "| 🌐 默认地址 | https://${{ env.PROJECT_NAME }}.pages.dev |" >> $GITHUB_STEP_SUMMARY
 
           if [ "${{ steps.bind_domain.outputs.domain_bound }}" = "true" ]; then
-            echo "| 🌐 自定义域名 | https://${{ github.event.inputs.custom_domain }} |" >> $GITHUB_STEP_SUMMARY
-            echo "| 🔧 管理后台 | https://${{ github.event.inputs.custom_domain }}/admin |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🌐 自定义域名 | https://${{ env.CUSTOM_DOMAIN }} |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔧 管理后台 | https://${{ env.CUSTOM_DOMAIN }}/admin |" >> $GITHUB_STEP_SUMMARY
           elif [ -n "${{ steps.bind_domain.outputs.domain_error }}" ]; then
             echo "| ⚠️ 域名绑定 | ${{ steps.bind_domain.outputs.domain_error }} |" >> $GITHUB_STEP_SUMMARY
             echo "| 🔧 管理后台 | https://${{ env.PROJECT_NAME }}.pages.dev/admin |" >> $GITHUB_STEP_SUMMARY
