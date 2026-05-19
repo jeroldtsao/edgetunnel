@@ -174,28 +174,64 @@ jobs:
         if: ${{ env.CUSTOM_DOMAIN }}
         run: |
           echo "检查域名绑定..."
+          DOMAIN="${{ env.CUSTOM_DOMAIN }}"
+          PROJECT="${{ env.PROJECT_NAME }}"
 
           # 检查域名是否已绑定
           DOMAIN_LIST=$(curl -s \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/domains" \
+            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT/domains" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
 
-          if echo "$DOMAIN_LIST" | jq -e '.result[] | select(.name=="${{ env.CUSTOM_DOMAIN }}")' > /dev/null 2>&1; then
-            echo "✅ 域名已绑定: ${{ env.CUSTOM_DOMAIN }}"
+          if echo "$DOMAIN_LIST" | jq -e '.result[] | select(.name=="$DOMAIN")' > /dev/null 2>&1; then
+            echo "✅ 域名已绑定: $DOMAIN"
           else
-            echo "绑定域名: ${{ env.CUSTOM_DOMAIN }}"
+            echo "绑定域名: $DOMAIN"
             BIND_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}/domains" \
+              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT/domains" \
               -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
               -H "Content-Type: application/json" \
-              -d '{"name":"${{ env.CUSTOM_DOMAIN }}"}')
+              -d "{\"name\":\"$DOMAIN\"}")
 
             if echo "$BIND_RESULT" | jq -e '.success' > /dev/null 2>&1; then
-              echo "✅ 域名绑定成功，请在 Cloudflare 控制台检查 DNS 状态"
+              echo "✅ 域名绑定成功"
+
+              # 添加 CNAME 记录
+              ZONE=$(echo "$DOMAIN" | rev | cut -d'.' -f1-2 | rev)
+              echo "查找 Zone: $ZONE"
+
+              ZONE_RESULT=$(curl -s \
+                "https://api.cloudflare.com/client/v4/zones?name=$ZONE" \
+                -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
+
+              ZONE_ID=$(echo "$ZONE_RESULT" | jq -r '.result[0].id // empty')
+
+              if [ -n "$ZONE_ID" ]; then
+                echo "Zone ID: $ZONE_ID"
+
+                # 提取子域名部分
+                SUB=$(echo "$DOMAIN" | sed "s/\.$ZONE\$//" | sed "s/^$ZONE$/@/")
+                CNAME_TARGET="$PROJECT.pages.dev"
+
+                echo "添加 CNAME: $SUB -> $CNAME_TARGET"
+
+                DNS_RESULT=$(curl -s -X POST \
+                  "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+                  -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"type\":\"CNAME\",\"name\":\"$SUB\",\"content\":\"$CNAME_TARGET\",\"ttl\":1,\"proxied\":true}")
+
+                if echo "$DNS_RESULT" | jq -e '.success' > /dev/null 2>&1; then
+                  echo "✅ CNAME 记录已添加"
+                else
+                  DNS_ERROR=$(echo "$DNS_RESULT" | jq -r '.errors[0].message // "添加失败"')
+                  echo "::warning::CNAME 记录添加失败: $DNS_ERROR（可能已存在）"
+                fi
+              else
+                echo "::warning::未找到 Zone: $ZONE，请手动添加 CNAME 记录"
+              fi
             else
               ERROR=$(echo "$BIND_RESULT" | jq -r '.errors[0].message // "绑定失败"')
               echo "::warning::域名绑定失败: $ERROR"
-              echo "提示：请确保域名已托管在 Cloudflare，并手动添加 CNAME 记录指向 ${PROJECT_NAME}.pages.dev"
             fi
           fi
         env:
