@@ -201,4 +201,4 @@ jobs:
           echo "| 📄 项目 | ${{ env.PROJECT_NAME }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 🌐 地址 | https://${{ env.PROJECT_NAME }}.pages.dev |" >> $GITHUB_STEP_SUMMARY
           [ "${{ env.CUSTOM_DOMAIN }}" ] && echo "| 🌐 域名 | https://${{ env.CUSTOM_DOMAIN }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔧 后台 | https://${{ env.CUSTOM_DOMAIN || env.PROJECT_NAME }}.pages.dev/admin |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔧 后台 | https://${{ env.CUSTOM_DOMAIN || env.PROJECT_NAME }}/admin |" >> $GITHUB_STEP_SUMMARY
