@@ -1,8 +1,19 @@
-name = "v20251104"
+name = "edgetunnel"
 main = "_worker.js"
 compatibility_date = "2025-11-04"
+workers_dev = true
 keep_vars = true
 
-#[[kv_namespaces]]
-#binding = "KV"			#KV绑定名默认不可修改
-#id = ""				#KV数据库id
+# GitHub Actions 会自动创建/复用 KV，并生成带真实 id 的 wrangler.generated.toml。
+# 本地手动部署时，把下面注释打开并填入 `wrangler kv namespace list` 查到的 id。
+#
+# [[kv_namespaces]]
+# binding = "KV"
+# id = ""
+#
+# 本地手动绑定 Workers 自定义域名时，把下面注释打开并替换为自己的域名。
+# Cloudflare 会自动创建 DNS 记录和证书，域名必须已托管在同一个 Cloudflare 账号下。
+#
+# [[routes]]
+# pattern = "vless.example.com"
+# custom_domain = true

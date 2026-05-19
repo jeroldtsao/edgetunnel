@@ -1,8 +1,7 @@
-name: Deploy to Cloudflare Pages
+name: Deploy to Cloudflare Workers
 
 permissions:
   contents: read
-  deployments: write
 
 on:
   workflow_dispatch:
@@ -16,209 +15,225 @@ on:
       - '.github/workflows/deploy.yml'
 
 env:
-  PROJECT_NAME: ${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'edgetunnel' }}
+  WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME || vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'edgetunnel' }}
   CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN || '' }}
   KV_NAME: ${{ vars.KV_NAME || 'EDT2' }}
+  WRANGLER_SEND_METRICS: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy to Cloudflare Pages
+    name: Deploy Worker
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
-      - name: Install dependencies
+      - name: Install Wrangler
+        run: npm install -g wrangler@latest
+
+      - name: Validate configuration
+        shell: bash
         run: |
-          npm install -g wrangler
-          sudo apt-get install -y jq
+          set -euo pipefail
 
-      # 检查并创建 Pages 项目（使用 API）
-      - name: Ensure Pages Project
-        run: |
-          echo "检查 Pages 项目..."
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::缺少 Secret: CLOUDFLARE_API_TOKEN"
+            exit 1
+          fi
 
-          # 使用 API 检查项目是否存在
-          CHECK=$(curl -s -w "%{http_code}" \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json")
+          if [ -z "${CLOUDFLARE_ACCOUNT_ID:-}" ]; then
+            echo "::error::缺少 Secret: CLOUDFLARE_ACCOUNT_ID"
+            exit 1
+          fi
 
-          HTTP_CODE=$(echo "$CHECK" | tail -c 4)
+          if [ -z "${ADMIN_PASSWORD:-}" ]; then
+            echo "::error::缺少 Secret: ADMIN_PASSWORD"
+            exit 1
+          fi
 
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✅ Pages 项目已存在: ${{ env.PROJECT_NAME }}"
-          else
-            echo "创建 Pages 项目: ${{ env.PROJECT_NAME }}"
-            curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d '{"name":"${{ env.PROJECT_NAME }}","production_branch":"main"}' \
-              | jq -r '.success' && echo "✅ Pages 项目创建成功" || echo "⚠️ 项目创建失败，可能已存在"
+          if [ -z "$KV_NAME" ]; then
+            echo "::error::KV_NAME 不能为空"
+            exit 1
+          fi
+
+          if [[ ! "$WORKER_NAME" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]]; then
+            echo "::error::WORKER_NAME 只能包含小写字母、数字和连字符，且必须以字母或数字开头"
+            exit 1
+          fi
+
+          if [ -n "$CUSTOM_DOMAIN" ]; then
+            if [[ "$CUSTOM_DOMAIN" =~ ^https?:// ]] || [[ "$CUSTOM_DOMAIN" == */* ]] || [[ "$CUSTOM_DOMAIN" != *.* ]]; then
+              echo "::error::CUSTOM_DOMAIN 请填写纯域名，例如 vless.example.com，不要带 https:// 或路径"
+              exit 1
+            fi
           fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
 
-      # 检查并创建 KV 命名空间（使用 API）
-      - name: Ensure KV Namespace
+      - name: Check Cloudflare auth
+        run: wrangler whoami
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Ensure KV namespace
         id: kv
+        shell: bash
         run: |
-          echo "检查 KV 命名空间..."
-          KV_NAME="${{ env.KV_NAME }}"
+          set -euo pipefail
 
-          # 使用 API 查询现有 KV
-          KV_LIST=$(curl -s \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
+          echo "检查 KV 命名空间: $KV_NAME"
+          KV_LIST=$(wrangler kv namespace list)
+          KV_ID=$(node -e '
+            const fs = require("fs");
+            const name = process.argv[1];
+            const list = JSON.parse(fs.readFileSync(0, "utf8"));
+            const hit = list.find((item) => item.title === name);
+            if (hit) process.stdout.write(hit.id);
+          ' "$KV_NAME" <<< "$KV_LIST")
 
-          # 查找同名 KV 的 ID（使用 jq --arg 变量）
-          KV_ID=$(echo "$KV_LIST" | jq -r --arg name "$KV_NAME" '.result[] | select(.title == $name) | .id' | head -1)
-
-          if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
-            echo "✅ KV 命名空间已存在: $KV_NAME (ID: $KV_ID)"
-            echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
-          else
+          if [ -z "$KV_ID" ]; then
             echo "创建 KV 命名空间: $KV_NAME"
-            CREATE_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/storage/kv/namespaces" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"title\":\"$KV_NAME\"}")
-
-            KV_ID=$(echo "$CREATE_RESULT" | jq -r '.result.id')
-
-            if [ -n "$KV_ID" ] && [ "$KV_ID" != "null" ]; then
-              echo "✅ KV 命名空间创建成功: $KV_NAME (ID: $KV_ID)"
-              echo "kv_id=$KV_ID" >> $GITHUB_OUTPUT
-            else
-              echo "::warning::KV 创建失败"
-              echo "$CREATE_RESULT" | jq '.errors'
-            fi
+            wrangler kv namespace create "$KV_NAME" --binding KV
+            KV_LIST=$(wrangler kv namespace list)
+            KV_ID=$(node -e '
+              const fs = require("fs");
+              const name = process.argv[1];
+              const list = JSON.parse(fs.readFileSync(0, "utf8"));
+              const hit = list.find((item) => item.title === name);
+              if (hit) process.stdout.write(hit.id);
+            ' "$KV_NAME" <<< "$KV_LIST")
           fi
+
+          if [ -z "$KV_ID" ]; then
+            echo "::error::无法获取 KV namespace id"
+            exit 1
+          fi
+
+          echo "kv_id=$KV_ID" >> "$GITHUB_OUTPUT"
+          echo "KV 绑定将使用 binding=KV, id=$KV_ID"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
-      # 绑定 KV 到 Pages（使用 API）
-      - name: Bind KV to Pages
-        if: ${{ steps.kv.outputs.kv_id }}
+      - name: Generate Wrangler config
+        shell: bash
         run: |
-          echo "绑定 KV 到 Pages..."
-          KV_ID="${{ steps.kv.outputs.kv_id }}"
-          PROJECT="${{ env.PROJECT_NAME }}"
+          set -euo pipefail
 
-          # 使用 PUT 而不是 PATCH，设置完整的 kv_bindings
-          BIND_RESULT=$(curl -s -X PUT \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"production\":{\"kv_bindings\":[{\"binding\":\"KV\",\"namespace_id\":\"$KV_ID\"}]}}}")
+          node <<'NODE'
+          const fs = require("fs");
 
-          SUCCESS=$(echo "$BIND_RESULT" | jq -r '.success')
-          if [ "$SUCCESS" = "true" ]; then
-            echo "✅ KV 绑定成功: $KV_ID"
-          else
-            ERROR=$(echo "$BIND_RESULT" | jq -r '.errors[0].message // "绑定失败"')
-            echo "::warning::KV 绑定失败: $ERROR"
-          fi
+          const workerName = process.env.WORKER_NAME;
+          const kvId = process.env.KV_ID;
+          const customDomain = (process.env.CUSTOM_DOMAIN || "").trim().toLowerCase();
+
+          const lines = [
+            `name = ${JSON.stringify(workerName)}`,
+            `main = ${JSON.stringify(`${process.cwd()}/_worker.js`)}`,
+            `compatibility_date = "2025-11-04"`,
+            `workers_dev = true`,
+            `keep_vars = true`,
+            ``,
+            `[[kv_namespaces]]`,
+            `binding = "KV"`,
+            `id = ${JSON.stringify(kvId)}`,
+          ];
+
+          if (customDomain) {
+            lines.push(
+              ``,
+              `[[routes]]`,
+              `pattern = ${JSON.stringify(customDomain)}`,
+              `custom_domain = true`,
+            );
+          }
+
+          fs.writeFileSync("wrangler.generated.toml", `${lines.join("\n")}\n`);
+          NODE
+
+          echo "生成的部署配置:"
+          sed 's/id = ".*"/id = "***"/' wrangler.generated.toml
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          KV_ID: ${{ steps.kv.outputs.kv_id }}
 
-      # 设置环境变量（使用 API）
-      - name: Set Environment Variables
+      - name: Deploy Worker
+        id: deploy_worker
+        shell: bash
         run: |
-          echo "设置环境变量..."
+          set -euo pipefail
+          trap 'rm -f .worker-secrets.json' EXIT
 
-          # 使用 jq 正确构造 JSON
-          ENV_JSON=$(jq -n \
-            --arg admin "${{ secrets.ADMIN_PASSWORD }}" \
-            '{"ADMIN":{"value":$admin}}')
+          node <<'NODE' > .worker-secrets.json
+          const fs = require("fs");
 
-          # 添加可选变量
-          if [ -n "${{ secrets.UUID }}" ]; then
-            ENV_JSON=$(echo "$ENV_JSON" | jq --arg uuid "${{ secrets.UUID }}" '.UUID={"value":$uuid}')
-          fi
-          if [ -n "${{ secrets.PROXYIP }}" ]; then
-            ENV_JSON=$(echo "$ENV_JSON" | jq --arg proxy "${{ secrets.PROXYIP }}" '.PROXYIP={"value":$proxy}')
-          fi
-          if [ -n "${{ secrets.KEY }}" ]; then
-            ENV_JSON=$(echo "$ENV_JSON" | jq --arg key "${{ secrets.KEY }}" '.KEY={"value":$key}')
-          fi
+          const names = [
+            ["ADMIN", "ADMIN_PASSWORD"],
+            ["UUID", "UUID"],
+            ["PROXYIP", "PROXYIP"],
+            ["KEY", "KEY"],
+            ["HOST", "HOST"],
+            ["URL", "URL"],
+            ["GO2SOCKS5", "GO2SOCKS5"],
+            ["DEBUG", "DEBUG"],
+            ["OFF_LOG", "OFF_LOG"],
+            ["BEST_SUB", "BEST_SUB"],
+          ];
 
-          echo "发送配置..."
-          RESULT=$(curl -s -X PATCH \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"deployment_configs\":{\"production\":{\"env_vars\":$ENV_JSON}}}")
+          const secrets = {};
+          for (const [binding, envName] of names) {
+            const value = process.env[envName];
+            if (value !== undefined && value !== "") secrets[binding] = value;
+          }
 
-          if echo "$RESULT" | jq -e '.success' > /dev/null; then
-            echo "✅ 环境变量已设置"
-          else
-            echo "⚠️ 环境变量设置失败"
-            echo "$RESULT" | jq '.errors'
-          fi
+          fs.writeFileSync(".worker-secrets.json", JSON.stringify(secrets));
+          NODE
+
+          wrangler deploy --config wrangler.generated.toml --secrets-file .worker-secrets.json | tee wrangler-deploy.log
+
+          DEPLOY_URL=$(grep -Eo 'https://[^[:space:]]+' wrangler-deploy.log | tail -n 1 || true)
+          echo "deploy_url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      # 绑定自定义域名（使用 API）
-      - name: Bind Custom Domain
-        if: ${{ env.CUSTOM_DOMAIN }}
-        run: |
-          echo "检查域名绑定..."
-          DOMAIN="${{ env.CUSTOM_DOMAIN }}"
-          PROJECT="${{ env.PROJECT_NAME }}"
-
-          # 检查域名是否已绑定
-          DOMAIN_LIST=$(curl -s \
-            "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT/domains" \
-            -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}")
-
-          if echo "$DOMAIN_LIST" | jq -e --arg d "$DOMAIN" '.result[] | select(.name == $d)' > /dev/null 2>&1; then
-            echo "✅ 域名已绑定: $DOMAIN"
-          else
-            echo "绑定域名: $DOMAIN"
-            BIND_RESULT=$(curl -s -X POST \
-              "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/$PROJECT/domains" \
-              -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\":\"$DOMAIN\"}")
-
-            if echo "$BIND_RESULT" | jq -e '.success' > /dev/null 2>&1; then
-              echo "✅ 域名绑定成功"
-              echo "Cloudflare 将自动配置 DNS（如果域名托管在同一账号）"
-            else
-              ERROR=$(echo "$BIND_RESULT" | jq -r '.errors[0].message // "绑定失败"')
-              echo "::warning::域名绑定失败: $ERROR"
-            fi
-          fi
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-      - name: Deploy
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy . --project-name=${{ env.PROJECT_NAME }} --branch=${{ github.ref_name }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          UUID: ${{ secrets.UUID }}
+          PROXYIP: ${{ secrets.PROXYIP }}
+          KEY: ${{ secrets.KEY }}
+          HOST: ${{ secrets.HOST }}
+          URL: ${{ secrets.URL }}
+          GO2SOCKS5: ${{ secrets.GO2SOCKS5 }}
+          DEBUG: ${{ secrets.DEBUG }}
+          OFF_LOG: ${{ secrets.OFF_LOG }}
+          BEST_SUB: ${{ secrets.BEST_SUB }}
 
       - name: Summary
+        shell: bash
         run: |
-          echo "## ✅ 部署完成!" >> $GITHUB_STEP_SUMMARY
-          echo "| 项目 | 值 |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|-----|" >> $GITHUB_STEP_SUMMARY
-          echo "| 📄 项目 | ${{ env.PROJECT_NAME }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🌐 地址 | https://${{ env.PROJECT_NAME }}.pages.dev |" >> $GITHUB_STEP_SUMMARY
-          [ "${{ env.CUSTOM_DOMAIN }}" ] && echo "| 🌐 域名 | https://${{ env.CUSTOM_DOMAIN }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| 🔧 后台 | https://${{ env.CUSTOM_DOMAIN || env.PROJECT_NAME }}/admin |" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## 部署完成"
+            echo ""
+            echo "| 项目 | 值 |"
+            echo "|------|-----|"
+            echo "| Worker | \`$WORKER_NAME\` |"
+            if [ -n "${{ steps.deploy_worker.outputs.deploy_url }}" ]; then
+              echo "| 默认地址 | ${{ steps.deploy_worker.outputs.deploy_url }} |"
+            fi
+            echo "| KV 绑定 | \`KV\` -> \`${{ steps.kv.outputs.kv_id }}\` |"
+            if [ -n "$CUSTOM_DOMAIN" ]; then
+              echo "| 自定义域名 | https://$CUSTOM_DOMAIN |"
+              echo "| 后台 | https://$CUSTOM_DOMAIN/admin |"
+            else
+              if [ -n "${{ steps.deploy_worker.outputs.deploy_url }}" ]; then
+                echo "| 后台 | ${{ steps.deploy_worker.outputs.deploy_url }}/admin |"
+              fi
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

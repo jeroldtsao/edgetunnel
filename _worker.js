@@ -4103,6 +4103,87 @@ function log(...args) {
 	if (调试日志打印) console.log(...args);
 }
 
+function 获取自定义直连规则(config_JSON = {}) {
+	const 原始规则 = config_JSON?.直连规则 ?? config_JSON?.DIRECT_RULES ?? config_JSON?.DirectRules ?? config_JSON?.directRules;
+	const 原始数组 = Array.isArray(原始规则)
+		? 原始规则
+		: (typeof 原始规则 === 'string' ? 原始规则.replace(/[，、;；|\s]+/g, ',').split(',') : []);
+	const 结果 = [];
+	for (const item of 原始数组) {
+		let keyword = String(item || '').trim()
+			.replace(/^https?:\/\//i, '')
+			.split('/')[0]
+			.replace(/^\*\./, '')
+			.replace(/^\+\./, '');
+		if (!keyword || /[\r\n,]/.test(keyword)) continue;
+		if (!结果.includes(keyword)) 结果.push(keyword);
+	}
+	return 结果;
+}
+
+function 注入Clash直连规则(clash_yaml, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0) return clash_yaml;
+	const 新规则 = 直连规则
+		.filter(keyword => !clash_yaml.includes(`DOMAIN-KEYWORD,${keyword},DIRECT`))
+		.map(keyword => `  - DOMAIN-KEYWORD,${keyword},DIRECT`);
+	if (新规则.length === 0) return clash_yaml;
+
+	const lines = clash_yaml.split('\n');
+	const rulesIndex = lines.findIndex(line => /^rules:\s*(?:\[\])?\s*$/.test(line));
+	if (rulesIndex >= 0) {
+		lines[rulesIndex] = 'rules:';
+		lines.splice(rulesIndex + 1, 0, ...新规则);
+		return lines.join('\n');
+	}
+	return clash_yaml.replace(/\s*$/, '') + `\n\nrules:\n${新规则.join('\n')}\n`;
+}
+
+function 注入Surge直连规则(content, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0) return content;
+	const newline = content.includes('\r\n') ? '\r\n' : '\n';
+	const 新规则 = 直连规则
+		.filter(keyword => !content.includes(`DOMAIN-KEYWORD,${keyword},DIRECT`))
+		.map(keyword => `DOMAIN-KEYWORD,${keyword},DIRECT`);
+	if (新规则.length === 0) return content;
+
+	const lines = content.split(/\r?\n/);
+	const ruleIndex = lines.findIndex(line => line.trim().toLowerCase() === '[rule]');
+	if (ruleIndex >= 0) {
+		lines.splice(ruleIndex + 1, 0, ...新规则);
+		return lines.join(newline);
+	}
+	return content.replace(/\s*$/, '') + `${newline}${newline}[Rule]${newline}${新规则.join(newline)}${newline}`;
+}
+
+function 注入Singbox直连规则(config, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0 || !config || typeof config !== 'object') return;
+
+	config.outbounds = Array.isArray(config.outbounds) ? config.outbounds : [];
+	let directTag = config.outbounds.find(outbound => outbound?.type === 'direct' && outbound?.tag)?.tag;
+	if (!directTag) directTag = config.outbounds.find(outbound => ['direct', 'DIRECT'].includes(outbound?.tag))?.tag || 'direct';
+	if (!config.outbounds.some(outbound => outbound?.tag === directTag)) config.outbounds.unshift({ type: 'direct', tag: directTag });
+
+	config.route = config.route && typeof config.route === 'object' ? config.route : {};
+	const routeRules = Array.isArray(config.route.rules) ? config.route.rules : [];
+	const 已有规则 = new Set();
+	for (const rule of routeRules) {
+		if (!rule || typeof rule !== 'object' || Array.isArray(rule)) continue;
+		const outbound = rule.outbound || rule.action === 'route' && rule.outbound;
+		if (outbound !== directTag && outbound !== 'DIRECT' && outbound !== 'direct') continue;
+		const keywords = rule.domain_keyword === undefined ? [] : (Array.isArray(rule.domain_keyword) ? rule.domain_keyword : [rule.domain_keyword]);
+		for (const keyword of keywords) 已有规则.add(keyword);
+	}
+	const 新规则 = 直连规则.filter(keyword => !已有规则.has(keyword));
+	if (新规则.length > 0) {
+		config.route.rules = [{ domain_keyword: 新规则, action: 'route', outbound: directTag }, ...routeRules];
+	} else {
+		config.route.rules = routeRules;
+	}
+}
+
 function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
 	const uuid = config_JSON?.UUID || null;
 	const ECH启用 = Boolean(config_JSON?.ECH);
@@ -4257,7 +4338,7 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		clash_yaml = 插入NameserverPolicy(clash_yaml, hostsEntries);
 	}
 
-	if (!需要处理ECH && !需要处理gRPC) return clash_yaml;
+	if (!需要处理ECH && !需要处理gRPC) return 注入Clash直连规则(clash_yaml, config_JSON);
 
 	const lines = clash_yaml.split('\n');
 	const processedLines = [];
@@ -4317,7 +4398,7 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		}
 	}
 
-	return processedLines.join('\n');
+	return 注入Clash直连规则(processedLines.join('\n'), config_JSON);
 }
 
 async function Singbox订阅配置文件热补丁(SingBox_原始订阅内容, config_JSON = {}) {
@@ -4593,6 +4674,7 @@ async function Singbox订阅配置文件热补丁(SingBox_原始订阅内容, co
 			});
 		}
 
+		注入Singbox直连规则(config, config_JSON);
 		return JSON.stringify(config, null, 2);
 	} catch (e) {
 		console.error("Singbox热补丁执行失败:", e);
@@ -4616,7 +4698,7 @@ function Surge订阅配置文件热补丁(content, url, config_JSON) {
 	}
 
 	输出内容 = `#!MANAGED-CONFIG ${url} interval=${config_JSON.优选订阅生成.SUBUpdateTime * 60 * 60} strict=false` + 输出内容.substring(输出内容.indexOf('\n'));
-	return 输出内容;
+	return 注入Surge直连规则(输出内容, config_JSON);
 }
 
 async function 请求日志记录(env, request, 访问IP, 请求类型 = "Get_SUB", config_JSON, 是否写入KV日志 = true) {
@@ -4894,6 +4976,7 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 			SUBCONFIG: "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini",
 			SUBEMOJI: false,
 		},
+		直连规则: [],
 		反代: {
 			[_p]: "auto",
 			SOCKS5: {
@@ -4964,6 +5047,7 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 	config_JSON.HOST = host;
 	if (!config_JSON.HOSTS) config_JSON.HOSTS = [hostname];
 	if (env.HOST) config_JSON.HOSTS = (await 整理成数组(env.HOST)).map(h => h.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]);
+	config_JSON.直连规则 = 获取自定义直连规则(config_JSON);
 	config_JSON.UUID = userID;
 	if (!config_JSON.随机路径) config_JSON.随机路径 = false;
 	if (!config_JSON.启用0RTT) config_JSON.启用0RTT = false;

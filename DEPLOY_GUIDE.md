@@ -1,151 +1,113 @@
-# GitHub Actions 自动部署配置指南
+# GitHub Actions 自动部署指南
 
-本指南帮助你配置 GitHub Actions 自动部署 edgetunnel 到 Cloudflare Pages，支持自动设置 ADMIN 密码、自动创建 KV 命名空间和自动绑定自定义域名。
+本仓库已改为通过 GitHub Actions 部署到 Cloudflare Workers。相比 Pages 部署，Workers 的 KV 绑定和自定义域名都由 Wrangler 在同一次发布中处理，少了 Pages 项目配置、CNAME 验证和 API PATCH 漂移的问题。
 
-## 📋 前置条件
+## 一、Cloudflare API Token
 
-1. Cloudflare 账号
-2. Fork 的 edgetunnel 仓库
-3. 已配置的 GitHub Secrets
-4. **域名已托管在 Cloudflare**（如需自动绑定域名）
+在 Cloudflare Dashboard 创建 API Token，建议使用自定义令牌并授予：
 
-## 🔧 配置步骤
+| 范围 | 权限 | 用途 |
+|------|------|------|
+| Account | Workers Scripts: Edit | 发布 Worker |
+| Account | Workers KV Storage: Edit | 创建/读取 KV namespace |
+| Account | Account Settings: Read | Wrangler 校验账号 |
+| Zone | Workers Routes: Edit | 绑定自定义域名 |
+| Zone | DNS: Edit | 自动创建自定义域名 DNS 记录 |
+| Zone | Zone: Read | 查找域名所在 zone |
 
-### 第一步：获取 Cloudflare API Token
+如果不使用 `CUSTOM_DOMAIN`，Zone 相关权限可以不加。
 
-1. 登录 [Cloudflare Dashboard](https://dash.cloudflare.com/)
-2. 点击右上角头像 → `我的资料` → `API 令牌`
-3. 点击 `创建令牌`
-4. 选择 `编辑 Cloudflare Workers` 模板，或自定义权限：
-   - `Account` → `Account Settings` → `读取`
-   - `Account` → `Cloudflare Pages` → `编辑`
-   - `Account` → `Workers KV Storage` → `编辑`
-   - `Account` → `Workers Scripts` → `编辑`
-   - `Zone` → `DNS` → `编辑`（自动绑定域名需要）
-   - `Zone` → `Zone` → `读取`
-5. 点击 `继续以摘要显示` → `创建令牌`
-6. **⚠️ 复制令牌并保存**（只显示一次）
+## 二、GitHub Secrets
 
-### 第二步：获取 Account ID
+进入仓库 `Settings` -> `Secrets and variables` -> `Actions`，添加以下 Secrets：
 
-1. 在 Cloudflare Dashboard 右侧边栏找到你的账号
-2. 点击账号名称，在右侧信息栏可以看到 `账号 ID`
-3. 复制该 ID
+| Secret | 必填 | 说明 |
+|--------|------|------|
+| `CLOUDFLARE_API_TOKEN` | 是 | Cloudflare API Token |
+| `CLOUDFLARE_ACCOUNT_ID` | 是 | Cloudflare Account ID |
+| `ADMIN_PASSWORD` | 是 | 后台 `/admin` 登录密码，会部署为 Worker secret `ADMIN` |
+| `UUID` | 否 | 固定 UUID，必须是 UUIDv4 |
+| `PROXYIP` | 否 | 自定义反代地址 |
+| `KEY` | 否 | 快速订阅密钥 |
+| `HOST` | 否 | 自定义订阅里使用的 host |
+| `URL` | 否 | 默认伪装首页地址 |
+| `GO2SOCKS5` | 否 | SOCKS5 规则名单 |
+| `DEBUG` | 否 | `1` 或 `true` 开启调试日志 |
+| `OFF_LOG` | 否 | `1` 或 `true` 关闭 KV 日志 |
+| `BEST_SUB` | 否 | `1` 或 `true` 开启优选订阅生成器 |
 
-### 第三步：配置 GitHub Secrets 和 Variables
+## 三、GitHub Variables
 
-进入你 Fork 的仓库 → `Settings` → `Secrets and variables` → `Actions`
+同一页面切到 `Variables`，按需添加：
 
-#### 必需的 Secrets（敏感信息）
+| Variable | 默认值 | 说明 |
+|----------|--------|------|
+| `CLOUDFLARE_WORKER_NAME` | `edgetunnel` | Worker 名称，只能用小写字母、数字和连字符 |
+| `CUSTOM_DOMAIN` | 空 | 自定义域名，例如 `vless.example.com`，不要带 `https://` 或路径 |
+| `KV_NAME` | `EDT2` | KV namespace 名称 |
 
-| Secret 名称 | 说明 | 示例值 |
-|------------|------|--------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API 令牌 | 第一步获取 |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账号 ID | 第二步获取 |
-| `ADMIN_PASSWORD` | 后台管理员密码 | `your_password` |
+兼容旧配置：如果没有设置 `CLOUDFLARE_WORKER_NAME`，workflow 会继续读取旧的 `CLOUDFLARE_PAGES_PROJECT_NAME`。
 
-点击 `New repository secret` 添加上述 secrets。
+## 四、部署
 
-#### 可选的 Secrets（扩展配置）
+推送到 `main` 分支，或在 `Actions` 页面手动运行 `Deploy to Cloudflare Workers`。
 
-| Secret 名称 | 说明 | 示例值 |
-|------------|------|--------|
-| `UUID` | 固定 UUID（UUIDv4 格式） | `90cd4a77-141a-43c9-991b-08263cfe9c10` |
-| `PROXYIP` | 自定义反代 IP | `proxyip.cmliussss.net:443` |
-| `KEY` | 快速订阅密钥 | `CMLiussss` |
+workflow 会依次执行：
 
-#### 可选的 Variables（非敏感配置）
+1. 校验必需 Secrets 和域名格式。
+2. 使用 Wrangler 校验 Cloudflare 登录。
+3. 创建或复用名为 `KV_NAME` 的 KV namespace。
+4. 生成临时 `wrangler.generated.toml`，固定绑定名为 `KV`。
+5. 用 `--secrets-file` 注入 `ADMIN` 等 secrets 并发布 Worker。
+6. 如果设置了 `CUSTOM_DOMAIN`，通过 Workers Custom Domain 自动绑定域名。
 
-| Variable 名称 | 默认值 | 说明 |
-|--------------|-------|------|
-| `CLOUDFLARE_PAGES_PROJECT_NAME` | `edgetunnel` | Cloudflare Pages 项目名称 |
-| `CUSTOM_DOMAIN` | 无 | 自定义域名（如 `vless.example.com`），设置后每次部署自动绑定 |
-| `KV_NAME` | `EDT2` | KV 命名空间名称（首次部署时自动创建） |
+部署成功后访问：
 
-点击 `Variables` 标签 → `New repository variable` 添加。
+- 默认 Worker 地址：以 Actions Summary 中输出为准。
+- 自定义域名：`https://<CUSTOM_DOMAIN>/admin`。
 
-**💡 提示**：设置 `CUSTOM_DOMAIN` 变量后，每次部署都会自动检测并绑定域名，无需手动输入。
+## 五、自定义域名注意事项
 
-### 第四步：触发首次部署
+`CUSTOM_DOMAIN` 使用的是 Workers 自定义域名，不再是 Pages CNAME。请确认：
 
-#### 方式一：设置 Variables 后自动部署（推荐）
+1. 主域名已经托管在同一个 Cloudflare 账号中。
+2. 填写的是完整子域名，例如 `vless.example.com`。
+3. 不要填写根域名、URL、路径或通配符。
+4. API Token 有 `Zone:Workers Routes:Edit`、`Zone:DNS:Edit`、`Zone:Zone:Read`。
 
-1. 在 GitHub Variables 中设置：
-   - `CUSTOM_DOMAIN`: 自定义域名（如 `vless.example.com`）
-   - `KV_NAME`: KV 名称（如 `EDT2`）
-2. 推送代码到 `main` 分支
-3. 自动部署时会：
-   - ✅ 创建 Pages 项目
-   - ✅ 自动创建 KV（首次部署）
-   - ✅ 自动绑定 KV
-   - ✅ 自动设置 ADMIN 等环境变量
-   - ✅ 自动绑定自定义域名
-   - ✅ 自动添加 CNAME 记录
+如果域名之前已经在 Pages 或其他 Worker 里绑定，先到 Cloudflare 控制台删除旧绑定，再重新运行 workflow。
 
-#### 方式二：手动触发部署
+## 六、常见问题
 
-1. 进入 GitHub 仓库 → `Actions`
-2. 选择 `Deploy to Cloudflare Pages`
-3. 点击 `Run workflow`
-4. 配置选项：
-   - **部署环境**: `production`
-   - **自动创建 KV**: `true` ✓（首次部署建议勾选）
-5. 点击 `Run workflow`
+### KV 绑定失败
 
-域名绑定通过 `CUSTOM_DOMAIN` 变量控制，无需手动输入。
+检查 Token 是否有 `Workers KV Storage: Edit`。本 workflow 会在 KV 无法创建或无法取得 id 时直接失败，不会继续发布一个无 KV 的版本。
 
-#### 后续部署
+### 后台提示 noKV
 
-推送代码到 `main` 分支会自动触发部署，所有配置通过 Variables 控制。
+通常是你访问的不是本 workflow 发布的 Worker，或者 Cloudflare 上旧版本还未刷新。重新运行一次 workflow，并确认 Summary 里的 Worker 名和访问域名一致。
 
-### 第五步：域名要求（自动绑定）
+### 自定义域名不可用
 
-如需自动绑定域名，需满足以下条件：
+确认域名已托管在 Cloudflare，并且没有残留的 Pages 自定义域名绑定或冲突 DNS 记录。Workers Custom Domain 正常情况下会自动创建 DNS 记录和证书。
 
-1. **域名已托管在 Cloudflare**：主域名（如 `example.com`）必须已添加到 Cloudflare DNS
-2. **次级域名**：填写完整的次级域名（如 `vless.example.com`）
-3. **API Token 权限**：必须包含 `Zone` → `DNS` → `编辑` 权限
+### 如何改密码或变量
 
-如果域名未托管在 Cloudflare，需要手动添加域名后才能自动绑定。
+更新 GitHub Secrets 后重新运行 workflow。`ADMIN_PASSWORD` 会作为 Worker secret `ADMIN` 注入。
 
-## 🌐 访问管理后台
+### 如何让部分域名走直连
 
-部署完成后访问：
-- 默认地址：`https://<project>.pages.dev/admin`
-- 自定义域名：`https://<custom-domain>/admin`（如已绑定）
-- 使用 `ADMIN_PASSWORD` 密码登录
+在后台配置 JSON 中维护 `直连规则`，值可以是数组，也可以是逗号/换行分隔的字符串。保存后重新获取订阅即可，不需要重新部署。
 
-## ⚠️ 注意事项
+```json
+{
+  "直连规则": ["m-team", "lbx"]
+}
+```
 
-1. **API Token 权限**：需包含 Pages、KV、Workers、Zone DNS 编辑权限
-2. **KV 绑定名称**：自动绑定为 `KV`（大写），符合项目要求
-3. **ADMIN 密码**：通过 `ADMIN_PASSWORD` Secret 自动设置
-4. **域名托管**：域名必须已在 Cloudflare 才能自动绑定
-5. **Variables 配置**：设置 `CUSTOM_DOMAIN` 后每次部署自动绑定，无需手动输入
-6. **首次部署**：push 触发时会自动创建 KV（如果项目不存在）
+## 七、参考
 
-## 📚 参考链接
-
-- [edgetunnel 部署教程](https://blog.cmliussss.com/p/edt2/)
-- [Cloudflare Pages 文档](https://developers.cloudflare.com/pages/)
-- [wrangler-action 文档](https://github.com/cloudflare/wrangler-action)
-
-## 🆘 常见问题
-
-### Q: 部署失败提示 "Authentication error"
-检查 `CLOUDFLARE_API_TOKEN` 是否正确，令牌权限需包含 Pages、KV、Workers、Zone DNS 编辑权限。
-
-### Q: KV 创建失败
-确保 API Token 有 `Workers KV Storage` → `编辑` 权限。
-
-### Q: ADMIN 密码无效
-检查 `ADMIN_PASSWORD` Secret 是否正确设置。
-
-### Q: 域名绑定失败，提示"域名未托管"
-需要先在 Cloudflare Dashboard 添加主域名（如 `example.com`），然后再触发部署。
-
-### Q: 如何修改密码
-在 GitHub Secrets 中更新 `ADMIN_PASSWORD` 值，然后重新触发部署。
-
-### Q: 如何更换域名
-在 GitHub Variables 中更新 `CUSTOM_DOMAIN` 值，然后重新触发部署。
+- [Cloudflare Workers Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+- [Cloudflare Wrangler deploy](https://developers.cloudflare.com/workers/wrangler/commands/workers/#deploy)
+- [Cloudflare Workers Secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+- [Cloudflare Wrangler KV commands](https://developers.cloudflare.com/workers/wrangler/commands/kv/)
