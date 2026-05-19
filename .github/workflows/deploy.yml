@@ -5,6 +5,15 @@ permissions:
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: 'bootstrap: 初始化或修复 KV；deploy: 仅发布 Worker 更新'
+        type: choice
+        required: true
+        default: deploy
+        options:
+          - deploy
+          - bootstrap
 
   push:
     branches:
@@ -17,13 +26,14 @@ on:
 env:
   WORKER_NAME: ${{ vars.CLOUDFLARE_WORKER_NAME || vars.CLOUDFLARE_PAGES_PROJECT_NAME || 'edgetunnel' }}
   CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN || '' }}
+  KV_ID: ${{ vars.KV_ID || '' }}
   KV_NAME: ${{ vars.KV_NAME || 'EDT2' }}
   WRANGLER_SEND_METRICS: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    name: Deploy Worker
+    name: Cloudflare Worker
 
     steps:
       - name: Checkout
@@ -36,6 +46,27 @@ jobs:
 
       - name: Install Wrangler
         run: npm install -g wrangler@latest
+
+      - name: Determine workflow mode
+        id: mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MODE="deploy"
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ] && [ -n "${INPUT_MODE:-}" ]; then
+            MODE="$INPUT_MODE"
+          fi
+
+          if [ "$MODE" != "deploy" ] && [ "$MODE" != "bootstrap" ]; then
+            echo "::error::不支持的 mode: $MODE"
+            exit 1
+          fi
+
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "当前模式: $MODE"
+        env:
+          INPUT_MODE: ${{ github.event.inputs.mode || '' }}
 
       - name: Validate configuration
         shell: bash
@@ -52,13 +83,23 @@ jobs:
             exit 1
           fi
 
+          if [ "$MODE" = "bootstrap" ]; then
+            if [ -z "$KV_NAME" ]; then
+              echo "::error::KV_NAME 不能为空"
+              exit 1
+            fi
+
+            exit 0
+          fi
+
           if [ -z "${ADMIN_PASSWORD:-}" ]; then
             echo "::error::缺少 Secret: ADMIN_PASSWORD"
             exit 1
           fi
 
-          if [ -z "$KV_NAME" ]; then
-            echo "::error::KV_NAME 不能为空"
+          if [ -z "$KV_ID" ]; then
+            echo "::error::缺少 Variable: KV_ID"
+            echo "::error::请先手动运行 workflow_dispatch 并选择 mode=bootstrap，然后把 Summary 输出的 KV_ID 保存到仓库 Variables。"
             exit 1
           fi
 
@@ -74,6 +115,7 @@ jobs:
             fi
           fi
         env:
+          MODE: ${{ steps.mode.outputs.mode }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
@@ -85,6 +127,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Ensure KV namespace
+        if: steps.mode.outputs.mode == 'bootstrap'
         id: kv
         shell: bash
         run: |
@@ -125,6 +168,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
       - name: Generate Wrangler config
+        if: steps.mode.outputs.mode == 'deploy'
         shell: bash
         run: |
           set -euo pipefail
@@ -162,10 +206,8 @@ jobs:
 
           echo "生成的部署配置:"
           sed 's/id = ".*"/id = "***"/' wrangler.generated.toml
-        env:
-          KV_ID: ${{ steps.kv.outputs.kv_id }}
-
       - name: Deploy Worker
+        if: steps.mode.outputs.mode == 'deploy'
         id: deploy_worker
         shell: bash
         run: |
@@ -218,6 +260,22 @@ jobs:
       - name: Summary
         shell: bash
         run: |
+          if [ "$MODE" = "bootstrap" ]; then
+            {
+              echo "## KV 初始化完成"
+              echo ""
+              echo "| 项目 | 值 |"
+              echo "|------|-----|"
+              echo "| KV 名称 | \`$KV_NAME\` |"
+              echo "| KV ID | \`${{ steps.kv.outputs.kv_id }}\` |"
+              echo ""
+              echo "下一步："
+              echo "1. 把 \`KV_ID=${{ steps.kv.outputs.kv_id }}\` 保存到仓库 Variables。"
+              echo "2. 重新手动运行本 workflow 并选择 \`deploy\`，或直接推送代码到 \`main\`。"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           {
             echo "## 部署完成"
             echo ""
@@ -227,7 +285,7 @@ jobs:
             if [ -n "${{ steps.deploy_worker.outputs.deploy_url }}" ]; then
               echo "| 默认地址 | ${{ steps.deploy_worker.outputs.deploy_url }} |"
             fi
-            echo "| KV 绑定 | \`KV\` -> \`${{ steps.kv.outputs.kv_id }}\` |"
+            echo "| KV 绑定 | \`KV\` -> \`$KV_ID\` |"
             if [ -n "$CUSTOM_DOMAIN" ]; then
               echo "| 自定义域名 | https://$CUSTOM_DOMAIN |"
               echo "| 后台 | https://$CUSTOM_DOMAIN/admin |"
@@ -237,3 +295,5 @@ jobs:
               fi
             fi
           } >> "$GITHUB_STEP_SUMMARY"
+        env:
+          MODE: ${{ steps.mode.outputs.mode }}

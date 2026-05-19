@@ -9,7 +9,7 @@
 | 范围 | 权限 | 用途 |
 |------|------|------|
 | Account | Workers Scripts: Edit | 发布 Worker |
-| Account | Workers KV Storage: Edit | 创建/读取 KV namespace |
+| Account | Workers KV Storage: Edit | 创建/读取 KV namespace（仅 `bootstrap` 模式需要） |
 | Account | Account Settings: Read | Wrangler 校验账号 |
 | Zone | Workers Routes: Edit | 绑定自定义域名 |
 | Zone | DNS: Edit | 自动创建自定义域名 DNS 记录 |
@@ -44,22 +44,35 @@
 |----------|--------|------|
 | `CLOUDFLARE_WORKER_NAME` | `edgetunnel` | Worker 名称，只能用小写字母、数字和连字符 |
 | `CUSTOM_DOMAIN` | 空 | 自定义域名，例如 `vless.example.com`，不要带 `https://` 或路径 |
-| `KV_NAME` | `EDT2` | KV namespace 名称 |
+| `KV_ID` | 空 | 已创建 KV namespace 的 id，`deploy` 模式和 `push` 发布都会使用它 |
+| `KV_NAME` | `EDT2` | `bootstrap` 模式用于创建或查找 KV namespace 的名称 |
 
 兼容旧配置：如果没有设置 `CLOUDFLARE_WORKER_NAME`，workflow 会继续读取旧的 `CLOUDFLARE_PAGES_PROJECT_NAME`。
 
 ## 四、部署
 
-推送到 `main` 分支，或在 `Actions` 页面手动运行 `Deploy to Cloudflare Workers`。
+首次接入时建议按下面顺序执行：
 
-workflow 会依次执行：
+1. 在 `Actions` 页面手动运行 `Deploy to Cloudflare Workers`，选择 `mode=bootstrap`。
+2. workflow 会创建或复用名为 `KV_NAME` 的 KV namespace，并在 Summary 输出 `KV_ID`。
+3. 把这个 `KV_ID` 保存到仓库 `Variables`。
+4. 再次手动运行同一个 workflow 并选择 `mode=deploy`，或者以后直接推送到 `main` 分支。
 
-1. 校验必需 Secrets 和域名格式。
-2. 使用 Wrangler 校验 Cloudflare 登录。
-3. 创建或复用名为 `KV_NAME` 的 KV namespace。
-4. 生成临时 `wrangler.generated.toml`，固定绑定名为 `KV`。
-5. 用 `--secrets-file` 注入 `ADMIN` 等 secrets 并发布 Worker。
-6. 如果设置了 `CUSTOM_DOMAIN`，通过 Workers Custom Domain 自动绑定域名。
+之后的日常更新只需要 `push` 到 `main`，workflow 会直接使用固定的 `KV_ID` 发布 Worker，不再在每次发版时探测或创建 KV。
+
+workflow 分为两种模式：
+
+1. `bootstrap`
+   - 校验 Cloudflare 凭据和 `KV_NAME`。
+   - 使用 Wrangler 校验 Cloudflare 登录。
+   - 创建或复用名为 `KV_NAME` 的 KV namespace。
+   - 在 Summary 输出 `KV_ID`，供你保存到仓库 Variables。
+2. `deploy`
+   - 校验必需 Secrets、`KV_ID`、Worker 名称和自定义域名格式。
+   - 使用 Wrangler 校验 Cloudflare 登录。
+   - 生成临时 `wrangler.generated.toml`，固定绑定名为 `KV`。
+   - 用 `--secrets-file` 注入 `ADMIN` 等 secrets 并发布 Worker。
+   - 如果设置了 `CUSTOM_DOMAIN`，通过 Workers Custom Domain 自动绑定域名。
 
 部署成功后访问：
 
@@ -81,7 +94,7 @@ workflow 会依次执行：
 
 ### KV 绑定失败
 
-检查 Token 是否有 `Workers KV Storage: Edit`。本 workflow 会在 KV 无法创建或无法取得 id 时直接失败，不会继续发布一个无 KV 的版本。
+如果是 `bootstrap` 失败，先检查 Token 是否有 `Workers KV Storage: Edit`。如果是 `deploy` 失败并提示缺少 `KV_ID`，说明还没有先完成一次 `bootstrap`，或者仓库 Variables 里的 `KV_ID` 没填对。
 
 ### 后台提示 noKV
 
@@ -94,6 +107,10 @@ workflow 会依次执行：
 ### 如何改密码或变量
 
 更新 GitHub Secrets 后重新运行 workflow。`ADMIN_PASSWORD` 会作为 Worker secret `ADMIN` 注入。
+
+### 如何更换或重建 KV
+
+修改 `KV_NAME` 后重新手动运行 `mode=bootstrap`，拿到新的 `KV_ID` 后覆盖仓库 Variables 里的 `KV_ID`，再执行一次 `deploy` 即可。
 
 ### 如何让部分域名走直连
 
