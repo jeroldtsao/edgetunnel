@@ -110,12 +110,23 @@ jobs:
         if: ${{ steps.kv.outputs.kv_id }}
         run: |
           echo "绑定 KV 到 Pages..."
-          curl -s -X PATCH \
+          KV_ID="${{ steps.kv.outputs.kv_id }}"
+
+          BIND_RESULT=$(curl -s -X PATCH \
             "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/pages/projects/${{ env.PROJECT_NAME }}" \
             -H "Authorization: Bearer ${{ secrets.CLOUDFLARE_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d '{"deployment_configs":{"production":{"kv_bindings":[{"binding":"KV","namespace_id":"${{ steps.kv.outputs.kv_id }}"}]}}}' \
-            | jq -r '.success' && echo "✅ KV 绑定成功" || echo "⚠️ KV 绑定可能已存在"
+            -d "{\"deployment_configs\":{\"production\":{\"kv_bindings\":[{\"binding\":\"KV\",\"namespace_id\":\"$KV_ID\"}]}}}")
+
+          echo "绑定响应:"
+          echo "$BIND_RESULT" | jq '.'
+
+          if echo "$BIND_RESULT" | jq -e '.success' > /dev/null 2>&1; then
+            echo "✅ KV 绑定成功"
+          else
+            echo "::warning::KV 绑定失败"
+            echo "$BIND_RESULT" | jq '.errors'
+          fi
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
