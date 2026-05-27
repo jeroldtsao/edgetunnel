@@ -3528,7 +3528,7 @@ async function turnConnect(proxy, targetHost, targetPort, TCP连接) {
 		) {
 			const realmBytes = message.attributes[TURN_STUN_ATTR.REALM];
 			const nonce = message.attributes[TURN_STUN_ATTR.NONCE];
-			if (!realmBytes?.byteLength || !nonce?.byteLength) throw new Error('TURN authentication challenge is missing realm or nonce');
+			if (!realmBytes || !nonce?.byteLength) throw new Error('TURN authentication challenge is missing realm or nonce');
 
 			const realm = textDecoder.decode(realmBytes);
 			integrityKey = new Uint8Array(await crypto.subtle.digest('MD5', textEncoder.encode(`${proxy.username}:${realm}:${proxy.password}`)));
