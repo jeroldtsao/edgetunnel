@@ -9,7 +9,6 @@ const 上行合包目标字节 = 16 * 1024, 上行队列最大字节 = 16 * 1024
 const 下行Grain包字节 = 32 * 1024, 下行Grain尾部阈值 = 512, 下行Grain静默毫秒 = 0;
 let TCP并发拨号数 = 2, 预加载竞速拨号 = false;
 const 查杀特征码 = (Proxy.name + "IP").toUpperCase();
-const TCP并发拨号数 = 4;
 const 默认订阅转换配置 = "https://raw.githubusercontent.com/cmliu/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini";
 const 节点地区标签规则 = [
 	{ flag: '🇭🇰', name: '香港', codes: ['HKG'], patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
