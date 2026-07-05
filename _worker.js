@@ -4699,11 +4699,23 @@ function 注入管理后台增强面板(html) {
     loadDirectRules();
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', insertDirectRulesPanel);
-  else insertDirectRulesPanel();
+  let enhancedPanelAttempts = 0;
+  function scheduleInsertDirectRulesPanel() {
+    enhancedPanelAttempts += 1;
+    insertDirectRulesPanel();
+    if (!document.getElementById('directRulesModule') && enhancedPanelAttempts < 40) {
+      setTimeout(scheduleInsertDirectRulesPanel, 250);
+    }
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scheduleInsertDirectRulesPanel);
+  else scheduleInsertDirectRulesPanel();
 })();
 </script>`;
-	return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, 注入内容 + '\n</body>') : html + 注入内容;
+	const 末尾Body索引 = html.toLowerCase().lastIndexOf('</body>');
+	return 末尾Body索引 >= 0
+		? html.slice(0, 末尾Body索引) + 注入内容 + '\n' + html.slice(末尾Body索引)
+		: html + 注入内容;
 }
 
 function 获取简洁三组订阅模板() {
