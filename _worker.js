@@ -4212,7 +4212,7 @@ async function 返回管理后台页面(adminURL) {
 }
 
 function 注入管理后台增强面板(html) {
-	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="subNameModule"') && html.includes('id="regionTagModule"')) return html;
+	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="regionTagModule"')) return html;
 	const 注入内容 = `
 <script>
 (function () {
@@ -4310,46 +4310,10 @@ function 注入管理后台增强面板(html) {
     else alert(message);
   };
 
-  const showSubNameToast = (message, type) => {
-    if (typeof showToast === 'function') showToast(message, type || 'success');
-    else alert(message);
-  };
-
   const showRegionTagToast = (message, type) => {
     if (typeof showToast === 'function') showToast(message, type || 'success');
     else alert(message);
   };
-
-  async function loadSubName() {
-    const input = document.getElementById('subNameInput');
-    if (!input) return;
-    try {
-      const config = await readConfig();
-      input.value = String(getNestedValue(config, ['优选订阅生成', 'SUBNAME'], 'edgetunnel') || 'edgetunnel');
-    } catch (error) {
-      showSubNameToast('订阅名称读取失败: ' + error.message, 'error');
-    }
-  }
-
-  async function saveSubName() {
-    const input = document.getElementById('subNameInput');
-    const saveBtn = document.getElementById('subNameApplyBtn');
-    if (!input || !saveBtn) return;
-    saveBtn.disabled = true;
-    try {
-      const config = await readConfig();
-      const subName = String(input.value || '').trim() || 'edgetunnel';
-      setNestedValue(config, ['优选订阅生成', 'SUBNAME'], subName);
-      await writeConfig(config);
-      input.value = subName;
-      syncRuntimeConfig(['优选订阅生成', 'SUBNAME'], subName);
-      showSubNameToast('✅ 订阅名称已保存，请重新获取订阅', 'success');
-    } catch (error) {
-      showSubNameToast('订阅名称保存失败: ' + error.message, 'error');
-    } finally {
-      saveBtn.disabled = false;
-    }
-  }
 
   async function loadRegionTag() {
     const toggle = document.getElementById('regionTagToggle');
@@ -4415,12 +4379,10 @@ function 注入管理后台增强面板(html) {
     if (document.getElementById('directRulesModule')) return;
     const style = document.createElement('style');
     style.textContent = \`
-      #directRulesInput,
-      #subNameInput {
+      #directRulesInput {
         width: 100%;
       }
       #directRulesModule .edt-direct-row,
-      #subNameModule .edt-subname-row,
       #simpleModeModule .edt-simple-stack {
         display: flex;
         flex-direction: column;
@@ -4428,17 +4390,10 @@ function 注入管理后台增强面板(html) {
         width: 100%;
       }
       #directRulesModule .input-wrapper,
-      #subNameModule .input-wrapper,
       #simpleModeModule .input-wrapper {
         width: 100%;
       }
       #directRulesModule .edt-direct-tip {
-        display: block;
-        color: #64748b;
-        line-height: 1.5;
-        font-size: 12px;
-      }
-      #subNameModule .edt-subname-tip {
         display: block;
         color: #64748b;
         line-height: 1.5;
@@ -4457,7 +4412,6 @@ function 注入管理后台增强面板(html) {
         font-size: 12px;
       }
       @media (max-width: 640px) {
-        #subNameModule .module-footer .btn-group,
         #regionTagModule .module-footer .btn-group,
         #simpleModeModule .module-footer .btn-group,
         #directRulesModule .module-footer .btn-group {
@@ -4465,7 +4419,6 @@ function 注入管理后台增强面板(html) {
           display: flex;
           gap: 10px;
         }
-        #subNameModule .module-footer .btn-group .btn,
         #regionTagModule .module-footer .btn-group .btn,
         #simpleModeModule .module-footer .btn-group .btn,
         #directRulesModule .module-footer .btn-group .btn {
@@ -4473,62 +4426,10 @@ function 注入管理后台增强面板(html) {
         }
       }
       html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
-      html.dark-mode #subNameModule .edt-subname-tip { color: #94a3b8; }
       html.dark-mode #regionTagModule .edt-region-tip { color: #94a3b8; }
       html.dark-mode #simpleModeModule .edt-simple-tip { color: #94a3b8; }
     \`;
     document.head.appendChild(style);
-
-    const subNamePanel = document.createElement('div');
-    subNamePanel.className = 'module';
-    subNamePanel.id = 'subNameModule';
-    subNamePanel.innerHTML = \`
-      <div class="module-title" role="button" tabindex="0">
-        🏷️ 订阅名称
-        <span class="collapse-icon">⌄</span>
-      </div>
-      <div class="module-content">
-        <div class="form-group">
-          <label for="subNameInput">客户端显示名称</label>
-          <div class="edt-subname-row">
-            <div class="input-wrapper">
-              <input type="text" id="subNameInput" title="订阅配置名称" placeholder="edgetunnel">
-            </div>
-            <small class="edt-subname-tip">
-              用于订阅文件名和 Profile-Title。部分客户端可能需要重新导入，或手动把原配置名称改回自动跟随。
-            </small>
-          </div>
-        </div>
-        <div class="module-footer">
-          <div class="btn-group">
-            <button type="button" class="btn btn-secondary" id="subNameReloadBtn">读取</button>
-            <button type="button" class="btn btn-primary" id="subNameApplyBtn">保存</button>
-          </div>
-        </div>
-      </div>\`;
-
-    const subNameTitle = subNamePanel.querySelector('.module-title');
-    subNameTitle.addEventListener('click', () => {
-      if (typeof toggleModule === 'function') toggleModule(subNameTitle);
-      else subNamePanel.classList.toggle('collapsed');
-    });
-    subNameTitle.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        subNameTitle.click();
-      }
-    });
-    const subNameInput = subNamePanel.querySelector('#subNameInput');
-    const subNameApplyBtn = subNamePanel.querySelector('#subNameApplyBtn');
-    subNamePanel.querySelector('#subNameReloadBtn').addEventListener('click', loadSubName);
-    subNameApplyBtn.addEventListener('click', saveSubName);
-    subNameInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        saveSubName();
-      }
-    });
-    subNameInput.addEventListener('input', () => { subNameApplyBtn.disabled = false; });
 
     const regionPanel = document.createElement('div');
     regionPanel.className = 'module';
@@ -4683,17 +4584,14 @@ function 注入管理后台增强面板(html) {
     const configModule = document.getElementById('preferredSubscriptionModule');
     const anchor = convertModule || configModule || document.querySelector('.card-container');
     if (anchor && anchor.parentNode) {
-      anchor.parentNode.insertBefore(subNamePanel, anchor.nextSibling);
-      anchor.parentNode.insertBefore(regionPanel, subNamePanel.nextSibling);
+      anchor.parentNode.insertBefore(regionPanel, anchor.nextSibling);
       anchor.parentNode.insertBefore(simplePanel, regionPanel.nextSibling);
       anchor.parentNode.insertBefore(panel, simplePanel.nextSibling);
     } else {
-      document.body.appendChild(subNamePanel);
       document.body.appendChild(regionPanel);
       document.body.appendChild(simplePanel);
       document.body.appendChild(panel);
     }
-    loadSubName();
     loadRegionTag();
     loadSimpleMode();
     loadDirectRules();
