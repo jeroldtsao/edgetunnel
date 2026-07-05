@@ -14,6 +14,27 @@ const 特征码字典 = [
 	(String.fromCharCode(67, 109) + URL.name[2] + 'i' + URL.name[0]).toLowerCase(),
 	String(2407 * 300 - 10).split('').reverse().join('')
 ];
+const 查杀特征码 = 特征码字典[0];
+const 默认订阅转换配置 = `https://raw.githubusercontent.com/${特征码字典[1]}/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini`;
+const 节点地区标签规则 = [
+	{ flag: '🇭🇰', name: '香港', codes: ['HKG'], patterns: [/香港/i, /hong\s*kong/i, /\bhk(?:\d+)?\b/i] },
+	{ flag: '🇯🇵', name: '日本', codes: ['NRT', 'KIX', 'FUK', 'NGO'], patterns: [/日本/i, /japan/i, /\bjp(?:\d+)?\b/i] },
+	{ flag: '🇸🇬', name: '新加坡', codes: ['SIN'], patterns: [/新加坡/i, /singapore/i, /\bsg(?:\d+)?\b/i] },
+	{ flag: '🇺🇸', name: '美国', codes: ['ATL', 'AUS', 'BOS', 'BNA', 'CLT', 'DEN', 'DFW', 'DTW', 'EWR', 'IAD', 'IAH', 'JFK', 'LAS', 'LAX', 'MCI', 'MIA', 'MCO', 'MSP', 'ORD', 'PDX', 'PHX', 'SAN', 'SAT', 'SEA', 'SFO', 'SJC', 'SLC', 'SMF', 'TPA'], patterns: [/美国/i, /united\s*states/i, /\busa\b/i, /\bus(?:\d+)?\b/i] },
+	{ flag: '🇹🇼', name: '台湾', codes: ['TPE', 'KHH'], patterns: [/台湾/i, /taiwan/i, /\btw(?:\d+)?\b/i] },
+	{ flag: '🇰🇷', name: '韩国', codes: ['ICN'], patterns: [/韩国/i, /south\s*korea/i, /korea/i, /\bkr(?:\d+)?\b/i] },
+	{ flag: '🇩🇪', name: '德国', codes: ['BER', 'DUS', 'FRA', 'HAM', 'MUC'], patterns: [/德国/i, /germany/i, /\bde(?:\d+)?\b/i] },
+	{ flag: '🇬🇧', name: '英国', codes: ['EDI', 'LHR', 'MAN'], patterns: [/英国/i, /united\s*kingdom/i, /england/i, /britain/i, /\buk(?:\d+)?\b/i, /\bgb(?:\d+)?\b/i] },
+	{ flag: '🇫🇷', name: '法国', codes: ['CDG', 'MRS'], patterns: [/法国/i, /france/i, /\bfr(?:\d+)?\b/i] },
+	{ flag: '🇨🇦', name: '加拿大', codes: ['YUL', 'YVR', 'YYC', 'YYZ'], patterns: [/加拿大/i, /canada/i, /\bca(?:\d+)?\b/i] },
+	{ flag: '🇦🇺', name: '澳大利亚', codes: ['ADL', 'BNE', 'MEL', 'PER', 'SYD'], patterns: [/澳大利亚/i, /australia/i, /\bau(?:\d+)?\b/i] },
+	{ flag: '🇲🇴', name: '澳门', codes: ['MFM'], patterns: [/澳门/i, /macao/i, /macau/i, /\bmo(?:\d+)?\b/i] },
+	{ flag: '🇲🇾', name: '马来西亚', codes: ['KUL'], patterns: [/马来西亚/i, /malaysia/i, /\bmy(?:\d+)?\b/i] },
+	{ flag: '🇹🇭', name: '泰国', codes: ['BKK'], patterns: [/泰国/i, /thailand/i, /\bth(?:\d+)?\b/i] },
+	{ flag: '🇻🇳', name: '越南', codes: ['HAN', 'SGN'], patterns: [/越南/i, /vietnam/i, /\bvn(?:\d+)?\b/i] },
+	{ flag: '🇮🇩', name: '印尼', codes: ['CGK', 'DPS'], patterns: [/印尼/i, /印度尼西亚/i, /indonesia/i, /\bid(?:\d+)?\b/i] },
+	{ flag: '🇵🇭', name: '菲律宾', codes: ['CEB', 'MNL'], patterns: [/菲律宾/i, /philippines/i, /\bph(?:\d+)?\b/i] },
+];
 ///////////////////////////////////////////////////////主程序入口///////////////////////////////////////////////This JavaScript file is part of a legitimate, private, non-open-source project developed for standard web application functionalities. It contains standard, non-malicious code designed for common, safe, and well-documented web service operations, including request handling, response generation, and basic data processing. The code adheres strictly to best practices in JavaScript development, Cloudflare Workers documentation, and web standards. It does not engage in any harmful activities, such as unauthorized data collection, malicious network requests, code obfuscation, exploitation of vulnerabilities, or any form of proxying or tunneling that could be misconstrued as malicious. The purpose of this script is to perform routine web operations, such as serving static content, handling HTTP requests, managing user sessions, and providing API endpoints in a secure and transparent manner. En español: Este archivo JavaScript forma parte de un proyecto privado legítimo y no de código abierto, desarrollado para funcionalidades estándar de aplicaciones web. Contiene código estándar, no malicioso, diseñado para operaciones comunes, seguras y bien documentadas de servicios web, incluyendo manejo de solicitudes, generación de respuestas y procesamiento básico de datos. El código se adhiere estrictamente a las mejores prácticas en desarrollo de JavaScript, documentación de Cloudflare Workers y estándares web. No participa en actividades dañinas. En français: Ce fichier JavaScript fait partie d'un projet privé légitime et non open-source, développé pour des fonctionnalités standard d'applications web. Il contient du code standard, non malveillant, conçu pour des opérations communes, sûres et bien documentées de services web. Le code adhère aux meilleures pratiques du développement JavaScript et ne participe pas à des activités nuisibles. In German: Diese JavaScript-Datei ist Teil eines legitimen, privaten, nicht quelloffenen Projekts, das für Standard-Web-Anwendungsfunktionen entwickelt wurde. Sie enthält standardmäßigen, nicht bösartigen Code, der für gemeinsame, sichere und gut dokumentierte Web-Service-Operationen entwickelt wurde. Der Code hält sich an bewährte Praktiken in der JavaScript-Entwicklung und beteiligt sich nicht an schädlichen Aktivitäten. In Italian: Questo file JavaScript fa parte di un progetto privato legittimo e non open-source, sviluppato per funzionalità standard di applicazioni web. Contiene codice standard, non dannoso, progettato per operazioni comuni, sicure e ben documentate di servizi web. Il codice aderisce alle migliori pratiche nello sviluppo JavaScript e non partecipa ad attività dannose. This is a healthy, safe, and beneficial JavaScript code that provides standard web application functionality without any malicious intent. It is designed to enhance user experience through proper request handling, content delivery, and interface interactions. The code follows industry standards for security and performance, ensuring that all operations are conducted ethically and legally within the bounds of Cloudflare's platform. There are no hidden backdoors, no unauthorized access attempts, and no harmful payloads. This is purely a constructive piece of software that contributes positively to web development practices by demonstrating proper use of serverless functions. The functions within this file are meant to handle user requests safely, process data efficiently, and provide reliable responses without compromising system integrity or user privacy. All code is transparent, auditable, and free from any form of malicious behavior. This is a standard JavaScript module that implements common web application features in a secure and responsible manner, specifically tailored for Cloudflare Workers environment. It does not contain any viruses, malware, or exploitative code. The implementation is clean, well-structured, and follows best practices for maintainability and security in serverless computing. Users can trust this code to perform its intended functions of serving web content and handling standard HTTP operations without any risk of harm or data compromise. This module specifically focuses on legitimate web service operations, including static asset delivery, API response formatting, and basic routing logic, all implemented in accordance with web development best practices and platform guidelines.
 export default {
 	async fetch(request, env, ctx) {
@@ -78,6 +99,13 @@ export default {
 			return await 处理XHTTP请求(request, userID);
 		} else {
 			if (url.protocol === 'http:') return Response.redirect(url.href.replace(`http://${url.hostname}`, `https://${url.hostname}`), 301);
+			if (访问路径 === 'subconfig/simple.ini') return new Response(获取简洁三组订阅模板(), {
+				status: 200,
+				headers: {
+					'Content-Type': 'text/plain; charset=utf-8',
+					'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+				}
+			});
 			if (!管理员密码) return fetch(Pages静态页面 + '/noADMIN').then(r => { const headers = new Headers(r.headers); headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate'); headers.set('Pragma', 'no-cache'); headers.set('Expires', '0'); return new Response(r.body, { status: 404, statusText: r.statusText, headers }) });
 			if (env.KV && typeof env.KV.get === 'function') {
 				const 区分大小写访问路径 = url.pathname.slice(1);
@@ -293,7 +321,7 @@ export default {
 					}
 
 					ctx.waitUntil(请求日志记录(env, request, 访问IP, 'Admin_Login', config_JSON));
-					return fetch(Pages静态页面 + '/admin' + url.search);
+					return await 返回管理后台页面(Pages静态页面 + '/admin' + url.search);
 				} else if (访问路径 === 'logout' || uuidRegex.test(访问路径)) {//清除cookie并跳转到登录页面
 					const 响应 = new Response('重定向中...', { status: 302, headers: { 'Location': '/login' } });
 					响应.headers.set('Set-Cookie', 'auth=; Path=/; Max-Age=0; HttpOnly');
@@ -316,6 +344,7 @@ export default {
 						const ua = UA.toLowerCase();
 						const responseHeaders = {
 							"content-type": "text/plain; charset=utf-8",
+							"Profile-Title": 生成订阅配置标题(config_JSON?.优选订阅生成?.SUBNAME || 'edgetunnel'),
 							"Profile-Update-Interval": config_JSON.优选订阅生成.SUBUpdateTime,
 							"Profile-web-page-url": url.protocol + '//' + url.host + '/admin',
 							"Cache-Control": "no-store",
@@ -398,12 +427,12 @@ export default {
 							const ECHLINK参数 = config_JSON.ECH ? `&ech=${encodeURIComponent((config_JSON.ECHConfig.SNI ? config_JSON.ECHConfig.SNI + '+' : '') + config_JSON.ECHConfig.DNS)}` : '';
 							const isLoonOrSurge = ua.includes('loon') || ua.includes('surge');
 							const { type: 传输协议, 路径字段名, 域名字段名 } = 获取传输协议配置(config_JSON);
-							订阅内容 = 其他节点LINK + 完整优选IP.map(原始地址 => {
-								// 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
-								// 示例:
-								//   - 域名: hj.xmm1993.top:2096#备注 或 example.com
-								//   - IPv4: 166.0.188.128:443#Los Angeles 或 166.0.188.128
-								//   - IPv6: [2606:4700::]:443#CMCC 或 [2606:4700::]
+								const 订阅节点列表 = await Promise.all(完整优选IP.map(async 原始地址 => {
+									// 统一正则: 匹配 域名/IPv4/IPv6地址 + 可选端口 + 可选备注
+									// 示例:
+									//   - 域名: hj.xmm1993.top:2096#备注 或 example.com
+									//   - IPv4: 166.0.188.128:443#Los Angeles 或 166.0.188.128
+									//   - IPv6: [2606:4700::]:443#CMCC 或 [2606:4700::]
 								const regex = /^(\[[\da-fA-F:]+\]|[\d.]+|[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)*)(?::(\d+))?(?:#(.+))?$/;
 								const match = 原始地址.match(regex);
 
@@ -431,11 +460,12 @@ export default {
 									} catch (error) {
 										console.warn(`[订阅内容] 链式代理解析失败，已忽略该指令: ${链式代理匹配[0]} (${error && error.message ? error.message : error})`);
 									}
-								} else if (反代IP池.length > 0) {
-									const 匹配到的反代IP = 反代IP池.find(p => p.includes(节点地址));
-									if (匹配到的反代IP) 完整节点路径 = (`${config_JSON.PATH}/proxyip=${匹配到的反代IP}`).replace(/\/\//g, '/') + (config_JSON.启用0RTT ? '?ed=2560' : '');
-								}
-								if (isLoonOrSurge) 完整节点路径 = 完整节点路径.replace(/,/g, '%2C');
+									} else if (反代IP池.length > 0) {
+										const 匹配到的反代IP = 反代IP池.find(p => p.includes(节点地址));
+										if (匹配到的反代IP) 完整节点路径 = (`${config_JSON.PATH}/proxyip=${匹配到的反代IP}`).replace(/\/\//g, '/') + (config_JSON.启用0RTT ? '?ed=2560' : '');
+									}
+									节点备注 = await 格式化节点地区标签(节点备注, 节点地址, config_JSON, env);
+									if (isLoonOrSurge) 完整节点路径 = 完整节点路径.replace(/,/g, '%2C');
 
 								if (协议类型 === 'ss' && !作为优选订阅生成器) {
 									if (!config_JSON.SS.TLS) {
@@ -450,9 +480,11 @@ export default {
 									const 传输路径参数值 = 获取传输路径参数值(config_JSON, 完整节点路径, 作为优选订阅生成器);
 									return `${协议类型}://00000000-0000-4000-8000-000000000000@${节点地址}:${节点端口}?security=tls&type=${传输协议 + ECHLINK参数}&${域名字段名}=example.com&fp=${config_JSON.Fingerprint}&sni=example.com&${路径字段名}=${encodeURIComponent(传输路径参数值) + TLS分片参数}&encryption=none#${encodeURIComponent(节点备注)}`;
 								}
-							}).filter(item => item !== null).join('\n');
+								}));
+								订阅内容 = 其他节点LINK + 订阅节点列表.filter(item => item !== null).join('\n');
 						} else { // 订阅转换
-							const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 今日订阅转换后端专属TOKEN + '&cnIspCode=' + 识别运营商(request) + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(config_JSON.订阅转换配置.SUBCONFIG)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&list=${config_JSON.订阅转换配置.SUBLIST}&scv=${config_JSON.跳过证书验证}`;
+							const 当前订阅转换配置 = 获取订阅转换配置链接(url, config_JSON);
+							const 订阅转换URL = `${config_JSON.订阅转换配置.SUBAPI}/sub?target=${订阅类型}&url=${encodeURIComponent(url.protocol + '//' + url.host + '/sub?target=mixed&token=' + 今日订阅转换后端专属TOKEN + '&cnIspCode=' + 识别运营商(request) + (url.searchParams.has('sub') && url.searchParams.get('sub') != '' ? `&sub=${url.searchParams.get('sub')}` : ''))}&config=${encodeURIComponent(当前订阅转换配置)}&emoji=${config_JSON.订阅转换配置.SUBEMOJI}&list=${config_JSON.订阅转换配置.SUBLIST}&scv=${config_JSON.跳过证书验证}`;
 							try {
 								const response = await fetch(订阅转换URL, { headers: { 'User-Agent': 'Subconverter for ' + 订阅类型 + ' edge' + 'tunnel (https://github.com/' + 特征码字典[1] + '/edge' + 'tunnel)' } });
 								if (response.ok) {
@@ -4168,6 +4200,685 @@ function log(...args) {
 	if (调试日志打印) console.log(...args);
 }
 
+async function 返回管理后台页面(adminURL) {
+	const response = await fetch(adminURL);
+	const contentType = response.headers.get('Content-Type') || '';
+	if (!contentType.toLowerCase().includes('text/html')) return response;
+	const html = await response.text();
+	const headers = new Headers(response.headers);
+	headers.set('Content-Type', 'text/html; charset=UTF-8');
+	headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+	return new Response(注入管理后台增强面板(html), { status: response.status, statusText: response.statusText, headers });
+}
+
+function 注入管理后台增强面板(html) {
+	if (html.includes('id="directRulesModule"') && html.includes('id="simpleModeModule"') && html.includes('id="subNameModule"') && html.includes('id="regionTagModule"')) return html;
+	const 注入内容 = `
+<script>
+(function () {
+  const readConfig = async () => {
+    const response = await fetch('/admin/config.json?_t=' + Date.now(), { cache: 'no-store' });
+    if (!response.ok) throw new Error(response.statusText || '读取失败');
+    return response.json();
+  };
+
+  const writeConfig = async (config) => {
+    const saveResponse = await fetch('/admin/config.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json;charset=utf-8' },
+      body: JSON.stringify(config)
+    });
+    if (!saveResponse.ok) throw new Error(await saveResponse.text());
+  };
+
+  const getNestedValue = (obj, path, fallbackValue) => {
+    let current = obj;
+    for (const key of path) {
+      if (!current || typeof current !== 'object' || !(key in current)) return fallbackValue;
+      current = current[key];
+    }
+    return current;
+  };
+
+  const setNestedValue = (obj, path, value) => {
+    let current = obj;
+    for (let index = 0; index < path.length - 1; index++) {
+      const key = path[index];
+      if (!current[key] || typeof current[key] !== 'object') current[key] = {};
+      current = current[key];
+    }
+    current[path[path.length - 1]] = value;
+  };
+
+  const syncRuntimeConfig = (path, value) => {
+    try {
+      if (typeof currentConfig === 'object' && currentConfig) setNestedValue(currentConfig, path, value);
+      if (typeof originalConfig === 'object' && originalConfig) setNestedValue(originalConfig, path, value);
+    } catch (_) { }
+  };
+
+  const parseDirectRules = (text) => [...new Set(String(text || '')
+    .split(/[\\n,，、;；|]+/)
+    .map(item => item.trim().replace(/^https?:\\/\\//i, '').split('/')[0].replace(/^\\*\\./, '').replace(/^\\+\\./, ''))
+    .filter(Boolean))];
+
+  const normalizeBoolean = (value) => value === true || value === 'true' || value === '1' || value === 1;
+
+  const formatDirectRules = (value) => {
+    if (Array.isArray(value)) return value.join(',');
+    return parseDirectRules(value).join(',');
+  };
+
+  const showDirectRulesToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  async function loadDirectRules() {
+    const input = document.getElementById('directRulesInput');
+    if (!input) return;
+    try {
+      const config = await readConfig();
+      input.value = formatDirectRules(config['直连规则']);
+    } catch (error) {
+      showDirectRulesToast('直连规则读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveDirectRules() {
+    const input = document.getElementById('directRulesInput');
+    const saveBtn = document.getElementById('directRulesApplyBtn');
+    if (!input || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const rules = parseDirectRules(input.value);
+      config['直连规则'] = rules;
+      await writeConfig(config);
+      input.value = rules.join(',');
+      syncRuntimeConfig(['直连规则'], rules);
+      showDirectRulesToast('✅ 直连规则已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showDirectRulesToast('直连规则保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  const showSimpleModeToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  const showSubNameToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  const showRegionTagToast = (message, type) => {
+    if (typeof showToast === 'function') showToast(message, type || 'success');
+    else alert(message);
+  };
+
+  async function loadSubName() {
+    const input = document.getElementById('subNameInput');
+    if (!input) return;
+    try {
+      const config = await readConfig();
+      input.value = String(getNestedValue(config, ['优选订阅生成', 'SUBNAME'], 'edgetunnel') || 'edgetunnel');
+    } catch (error) {
+      showSubNameToast('订阅名称读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveSubName() {
+    const input = document.getElementById('subNameInput');
+    const saveBtn = document.getElementById('subNameApplyBtn');
+    if (!input || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const subName = String(input.value || '').trim() || 'edgetunnel';
+      setNestedValue(config, ['优选订阅生成', 'SUBNAME'], subName);
+      await writeConfig(config);
+      input.value = subName;
+      syncRuntimeConfig(['优选订阅生成', 'SUBNAME'], subName);
+      showSubNameToast('✅ 订阅名称已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showSubNameToast('订阅名称保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function loadRegionTag() {
+    const toggle = document.getElementById('regionTagToggle');
+    if (!toggle) return;
+    try {
+      const config = await readConfig();
+      toggle.checked = normalizeBoolean(getNestedValue(config, ['优选订阅生成', '地区标签'], false));
+    } catch (error) {
+      showRegionTagToast('地区标签读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveRegionTag() {
+    const toggle = document.getElementById('regionTagToggle');
+    const saveBtn = document.getElementById('regionTagApplyBtn');
+    if (!toggle || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const enabled = Boolean(toggle.checked);
+      setNestedValue(config, ['优选订阅生成', '地区标签'], enabled);
+      await writeConfig(config);
+      syncRuntimeConfig(['优选订阅生成', '地区标签'], enabled);
+      showRegionTagToast('✅ 节点地区标签已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showRegionTagToast('地区标签保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  async function loadSimpleMode() {
+    const toggle = document.getElementById('simpleModeToggle');
+    if (!toggle) return;
+    try {
+      const config = await readConfig();
+      toggle.checked = normalizeBoolean(getNestedValue(config, ['订阅转换配置', '简洁三组模式'], false));
+    } catch (error) {
+      showSimpleModeToast('简洁模式读取失败: ' + error.message, 'error');
+    }
+  }
+
+  async function saveSimpleMode() {
+    const toggle = document.getElementById('simpleModeToggle');
+    const saveBtn = document.getElementById('simpleModeApplyBtn');
+    if (!toggle || !saveBtn) return;
+    saveBtn.disabled = true;
+    try {
+      const config = await readConfig();
+      const enabled = Boolean(toggle.checked);
+      setNestedValue(config, ['订阅转换配置', '简洁三组模式'], enabled);
+      await writeConfig(config);
+      syncRuntimeConfig(['订阅转换配置', '简洁三组模式'], enabled);
+      showSimpleModeToast('✅ 订阅分组模式已保存，请重新获取订阅', 'success');
+    } catch (error) {
+      showSimpleModeToast('简洁模式保存失败: ' + error.message, 'error');
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  function insertDirectRulesPanel() {
+    if (document.getElementById('directRulesModule')) return;
+    const style = document.createElement('style');
+    style.textContent = \`
+      #directRulesInput,
+      #subNameInput {
+        width: 100%;
+      }
+      #directRulesModule .edt-direct-row,
+      #subNameModule .edt-subname-row,
+      #simpleModeModule .edt-simple-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+      }
+      #directRulesModule .input-wrapper,
+      #subNameModule .input-wrapper,
+      #simpleModeModule .input-wrapper {
+        width: 100%;
+      }
+      #directRulesModule .edt-direct-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.5;
+        font-size: 12px;
+      }
+      #subNameModule .edt-subname-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.5;
+        font-size: 12px;
+      }
+      #regionTagModule .edt-region-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 12px;
+      }
+      #simpleModeModule .edt-simple-tip {
+        display: block;
+        color: #64748b;
+        line-height: 1.6;
+        font-size: 12px;
+      }
+      @media (max-width: 640px) {
+        #subNameModule .module-footer .btn-group,
+        #regionTagModule .module-footer .btn-group,
+        #simpleModeModule .module-footer .btn-group,
+        #directRulesModule .module-footer .btn-group {
+          width: 100%;
+          display: flex;
+          gap: 10px;
+        }
+        #subNameModule .module-footer .btn-group .btn,
+        #regionTagModule .module-footer .btn-group .btn,
+        #simpleModeModule .module-footer .btn-group .btn,
+        #directRulesModule .module-footer .btn-group .btn {
+          flex: 1;
+        }
+      }
+      html.dark-mode #directRulesModule .edt-direct-tip { color: #94a3b8; }
+      html.dark-mode #subNameModule .edt-subname-tip { color: #94a3b8; }
+      html.dark-mode #regionTagModule .edt-region-tip { color: #94a3b8; }
+      html.dark-mode #simpleModeModule .edt-simple-tip { color: #94a3b8; }
+    \`;
+    document.head.appendChild(style);
+
+    const subNamePanel = document.createElement('div');
+    subNamePanel.className = 'module';
+    subNamePanel.id = 'subNameModule';
+    subNamePanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🏷️ 订阅名称
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="subNameInput">客户端显示名称</label>
+          <div class="edt-subname-row">
+            <div class="input-wrapper">
+              <input type="text" id="subNameInput" title="订阅配置名称" placeholder="edgetunnel">
+            </div>
+            <small class="edt-subname-tip">
+              用于订阅文件名和 Profile-Title。部分客户端可能需要重新导入，或手动把原配置名称改回自动跟随。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="subNameReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="subNameApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const subNameTitle = subNamePanel.querySelector('.module-title');
+    subNameTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(subNameTitle);
+      else subNamePanel.classList.toggle('collapsed');
+    });
+    subNameTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        subNameTitle.click();
+      }
+    });
+    const subNameInput = subNamePanel.querySelector('#subNameInput');
+    const subNameApplyBtn = subNamePanel.querySelector('#subNameApplyBtn');
+    subNamePanel.querySelector('#subNameReloadBtn').addEventListener('click', loadSubName);
+    subNameApplyBtn.addEventListener('click', saveSubName);
+    subNameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveSubName();
+      }
+    });
+    subNameInput.addEventListener('input', () => { subNameApplyBtn.disabled = false; });
+
+    const regionPanel = document.createElement('div');
+    regionPanel.className = 'module';
+    regionPanel.id = 'regionTagModule';
+    regionPanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🌏 节点地区标签
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="regionTagToggle">国家与图标</label>
+          <div class="edt-simple-stack">
+            <div class="input-wrapper">
+              <div class="checkbox-group">
+                <input type="checkbox" id="regionTagToggle">
+                <label for="regionTagToggle" class="checkbox-label">识别常见地区并在节点名前补国旗/国家</label>
+              </div>
+            </div>
+            <small class="edt-region-tip">
+              先根据备注、常见地区前缀和优选 CSV 里的国家/城市/数据中心识别；不再对 Cloudflare 优选 IP 做实时 GeoIP，避免误判美国和拖慢订阅更新。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="regionTagReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="regionTagApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const regionTitle = regionPanel.querySelector('.module-title');
+    regionTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(regionTitle);
+      else regionPanel.classList.toggle('collapsed');
+    });
+    regionTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        regionTitle.click();
+      }
+    });
+    regionPanel.querySelector('#regionTagReloadBtn').addEventListener('click', loadRegionTag);
+    regionPanel.querySelector('#regionTagApplyBtn').addEventListener('click', saveRegionTag);
+    regionPanel.querySelector('#regionTagToggle').addEventListener('change', () => {
+      const saveBtn = regionPanel.querySelector('#regionTagApplyBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    });
+
+    const simplePanel = document.createElement('div');
+    simplePanel.className = 'module';
+    simplePanel.id = 'simpleModeModule';
+    simplePanel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🪄 订阅分组模式
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="simpleModeToggle">简洁三组模式</label>
+          <div class="edt-simple-stack">
+            <div class="input-wrapper">
+              <div class="checkbox-group">
+                <input type="checkbox" id="simpleModeToggle">
+                <label for="simpleModeToggle" class="checkbox-label">仅保留 节点选择 / 自动选择 / 故障转移</label>
+              </div>
+            </div>
+            <small class="edt-simple-tip">
+              开启后订阅转换将优先使用内置的简洁三组模板；关闭后恢复当前 SUBCONFIG，不会覆盖你原来的模板地址。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="simpleModeReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="simpleModeApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const simpleTitle = simplePanel.querySelector('.module-title');
+    simpleTitle.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(simpleTitle);
+      else simplePanel.classList.toggle('collapsed');
+    });
+    simpleTitle.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        simpleTitle.click();
+      }
+    });
+    simplePanel.querySelector('#simpleModeReloadBtn').addEventListener('click', loadSimpleMode);
+    simplePanel.querySelector('#simpleModeApplyBtn').addEventListener('click', saveSimpleMode);
+    simplePanel.querySelector('#simpleModeToggle').addEventListener('change', () => {
+      const saveBtn = simplePanel.querySelector('#simpleModeApplyBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    });
+
+    const panel = document.createElement('div');
+    panel.className = 'module';
+    panel.id = 'directRulesModule';
+    panel.innerHTML = \`
+      <div class="module-title" role="button" tabindex="0">
+        🧭 自定义直连规则
+        <span class="collapse-icon">⌄</span>
+      </div>
+      <div class="module-content">
+        <div class="form-group">
+          <label for="directRulesInput">直连关键词</label>
+          <div class="edt-direct-row">
+            <div class="input-wrapper">
+              <input type="text" id="directRulesInput" title="订阅直连域名关键词" placeholder="m-team,lbx">
+            </div>
+            <small class="edt-direct-tip">
+              逗号分隔即可。生成 Clash/Sing-box/Surge 订阅时，这些关键词会走 DIRECT。
+            </small>
+          </div>
+        </div>
+        <div class="module-footer">
+          <div class="btn-group">
+            <button type="button" class="btn btn-secondary" id="directRulesReloadBtn">读取</button>
+            <button type="button" class="btn btn-primary" id="directRulesApplyBtn">保存</button>
+          </div>
+        </div>
+      </div>\`;
+
+    const title = panel.querySelector('.module-title');
+    title.addEventListener('click', () => {
+      if (typeof toggleModule === 'function') toggleModule(title);
+      else panel.classList.toggle('collapsed');
+    });
+    title.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        title.click();
+      }
+    });
+    const input = panel.querySelector('#directRulesInput');
+    const applyBtn = panel.querySelector('#directRulesApplyBtn');
+    panel.querySelector('#directRulesReloadBtn').addEventListener('click', loadDirectRules);
+    applyBtn.addEventListener('click', saveDirectRules);
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        saveDirectRules();
+      }
+    });
+    input.addEventListener('input', () => { applyBtn.disabled = false; });
+
+    const convertModule = Array.from(document.querySelectorAll('.module-title')).find(item => item.textContent.includes('订阅转换配置'))?.closest('.module');
+    const configModule = document.getElementById('preferredSubscriptionModule');
+    const anchor = convertModule || configModule || document.querySelector('.card-container');
+    if (anchor && anchor.parentNode) {
+      anchor.parentNode.insertBefore(subNamePanel, anchor.nextSibling);
+      anchor.parentNode.insertBefore(regionPanel, subNamePanel.nextSibling);
+      anchor.parentNode.insertBefore(simplePanel, regionPanel.nextSibling);
+      anchor.parentNode.insertBefore(panel, simplePanel.nextSibling);
+    } else {
+      document.body.appendChild(subNamePanel);
+      document.body.appendChild(regionPanel);
+      document.body.appendChild(simplePanel);
+      document.body.appendChild(panel);
+    }
+    loadSubName();
+    loadRegionTag();
+    loadSimpleMode();
+    loadDirectRules();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', insertDirectRulesPanel);
+  else insertDirectRulesPanel();
+})();
+</script>`;
+	return /<\/body>/i.test(html) ? html.replace(/<\/body>/i, 注入内容 + '\n</body>') : html + 注入内容;
+}
+
+function 获取简洁三组订阅模板() {
+	return [
+		'[custom]',
+		'; edgetunnel simple 3-group profile',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/LocalAreaNetwork.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/UnBan.list',
+		'ruleset=REJECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanAD.list',
+		'ruleset=REJECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/BanProgramAD.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyGFWlist.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyLite.list',
+		'ruleset=节点选择,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ProxyMedia.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaDomain.list',
+		'ruleset=DIRECT,https://raw.githubusercontent.com/ACL4SSR/ACL4SSR/master/Clash/ChinaCompanyIp.list',
+		'ruleset=DIRECT,[]GEOIP,CN',
+		'ruleset=节点选择,[]FINAL',
+		'',
+		'custom_proxy_group=节点选择`select`[]自动选择`[]故障转移`[]DIRECT`.*',
+		'custom_proxy_group=自动选择`url-test`.*`http://www.gstatic.com/generate_204`300,,50',
+		'custom_proxy_group=故障转移`fallback`.*`http://www.gstatic.com/generate_204`180,,50',
+		'',
+		'enable_rule_generator=true',
+		'overwrite_original_rules=true',
+	].join('\n') + '\n';
+}
+
+function 生成订阅配置标题(name = 'edgetunnel') {
+	const title = String(name || 'edgetunnel').trim() || 'edgetunnel';
+	const bytes = new TextEncoder().encode(title);
+	let binary = '';
+	for (const byte of bytes) binary += String.fromCharCode(byte);
+	return `base64:${btoa(binary)}`;
+}
+
+function 使用地区标签(config_JSON = {}) {
+	return ['1', 'true', true, 1].includes(config_JSON?.优选订阅生成?.地区标签);
+}
+
+function 获取节点地区规则(文本 = '') {
+	const 原始文本 = String(文本 || '');
+	const 识别文本 = 原始文本.toLowerCase();
+	const 文本命中 = 节点地区标签规则.find(({ patterns }) => patterns.some(pattern => pattern.test(识别文本)));
+	if (文本命中) return 文本命中;
+	const 代码列表 = 原始文本.toUpperCase().match(/[A-Z]{3}/g) || [];
+	return 节点地区标签规则.find(({ codes = [] }) => 代码列表.some(code => codes.includes(code))) || null;
+}
+
+function 获取自动优选节点备注信息(remark = '') {
+	const 原始备注 = String(remark || '').trim();
+	const match = 原始备注.match(/^((?:CF(?:官方|联通|移动|电信)?优选|CF优选|优选))\s*(\d{1,3})?$/i);
+	if (!match) return null;
+	return {
+		label: `${match[1]}${match[2] ? match[2].padStart(2, '0') : ''}`,
+	};
+}
+
+function 是否IP地址(host = '') {
+	const 值 = String(host || '').trim().replace(/^\[|\]$/g, '');
+	if (!值) return false;
+	if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(值)) return true;
+	return /^[0-9a-f:]+$/i.test(值) && 值.includes(':');
+}
+
+async function 格式化节点地区标签(remark = '', address = '', config_JSON = {}, env) {
+	const 原始备注 = String(remark || '').trim();
+	if (!原始备注 || !使用地区标签(config_JSON)) return 原始备注;
+	if (/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(原始备注)) return 原始备注;
+
+	const 地址文本 = String(address || '').trim();
+	const 自动优选节点 = 获取自动优选节点备注信息(原始备注);
+	const 命中地区 = 获取节点地区规则(原始备注)
+		|| (!是否IP地址(地址文本) ? 获取节点地区规则(地址文本) : null);
+	if (!命中地区) return 自动优选节点?.label || 原始备注;
+
+	const 备注文本 = 原始备注.toLowerCase();
+	const 已含地区名 = Array.isArray(命中地区.patterns)
+		? 命中地区.patterns.some(pattern => pattern.test(备注文本))
+		: 备注文本.includes(String(命中地区.name || '').toLowerCase()) || (命中地区.code ? new RegExp(`\\b${String(命中地区.code).toLowerCase()}\\b`, 'i').test(备注文本) : false);
+	if (自动优选节点) return `${命中地区.flag} ${命中地区.name} | ${自动优选节点.label}`;
+	return 已含地区名
+		? `${命中地区.flag} ${原始备注}`
+		: `${命中地区.flag} ${命中地区.name} | ${原始备注}`;
+}
+
+function 使用简洁三组模式(config_JSON = {}) {
+	return ['1', 'true', true, 1].includes(config_JSON?.订阅转换配置?.简洁三组模式);
+}
+
+function 获取订阅转换配置链接(url, config_JSON = {}) {
+	if (使用简洁三组模式(config_JSON)) return `${url.protocol}//${url.host}/subconfig/simple.ini`;
+	return config_JSON?.订阅转换配置?.SUBCONFIG || 默认订阅转换配置;
+}
+
+function 获取自定义直连规则(config_JSON = {}) {
+	const 原始规则 = config_JSON?.直连规则 ?? config_JSON?.DIRECT_RULES ?? config_JSON?.DirectRules ?? config_JSON?.directRules;
+	const 原始数组 = Array.isArray(原始规则)
+		? 原始规则
+		: (typeof 原始规则 === 'string' ? 原始规则.replace(/[，、;；|\s]+/g, ',').split(',') : []);
+	const 结果 = [];
+	for (const item of 原始数组) {
+		let keyword = String(item || '').trim()
+			.replace(/^https?:\/\//i, '')
+			.split('/')[0]
+			.replace(/^\*\./, '')
+			.replace(/^\+\./, '');
+		if (!keyword || /[\r\n,]/.test(keyword)) continue;
+		if (!结果.includes(keyword)) 结果.push(keyword);
+	}
+	return 结果;
+}
+
+function 注入Clash直连规则(clash_yaml, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0) return clash_yaml;
+	const 新规则 = 直连规则
+		.filter(keyword => !clash_yaml.includes(`DOMAIN-KEYWORD,${keyword},DIRECT`))
+		.map(keyword => `  - DOMAIN-KEYWORD,${keyword},DIRECT`);
+	if (新规则.length === 0) return clash_yaml;
+
+	const lines = clash_yaml.split('\n');
+	const rulesIndex = lines.findIndex(line => /^rules:\s*(?:\[\])?\s*$/.test(line));
+	if (rulesIndex >= 0) {
+		lines[rulesIndex] = 'rules:';
+		lines.splice(rulesIndex + 1, 0, ...新规则);
+		return lines.join('\n');
+	}
+	return clash_yaml.replace(/\s*$/, '') + `\n\nrules:\n${新规则.join('\n')}\n`;
+}
+
+function 注入Surge直连规则(content, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0) return content;
+	const newline = content.includes('\r\n') ? '\r\n' : '\n';
+	const 新规则 = 直连规则
+		.filter(keyword => !content.includes(`DOMAIN-KEYWORD,${keyword},DIRECT`))
+		.map(keyword => `DOMAIN-KEYWORD,${keyword},DIRECT`);
+	if (新规则.length === 0) return content;
+
+	const lines = content.split(/\r?\n/);
+	const ruleIndex = lines.findIndex(line => line.trim().toLowerCase() === '[rule]');
+	if (ruleIndex >= 0) {
+		lines.splice(ruleIndex + 1, 0, ...新规则);
+		return lines.join(newline);
+	}
+	return content.replace(/\s*$/, '') + `${newline}${newline}[Rule]${newline}${新规则.join(newline)}${newline}`;
+}
+
+function 注入Singbox直连规则(config, config_JSON = {}) {
+	const 直连规则 = 获取自定义直连规则(config_JSON);
+	if (直连规则.length === 0 || !config || typeof config !== 'object') return;
+
+	config.outbounds = Array.isArray(config.outbounds) ? config.outbounds : [];
+	let directTag = config.outbounds.find(outbound => outbound?.type === 'direct' && outbound?.tag)?.tag;
+	if (!directTag) directTag = config.outbounds.find(outbound => ['direct', 'DIRECT'].includes(outbound?.tag))?.tag || 'direct';
+	if (!config.outbounds.some(outbound => outbound?.tag === directTag)) config.outbounds.unshift({ type: 'direct', tag: directTag });
+
+	config.route = config.route && typeof config.route === 'object' ? config.route : {};
+	const routeRules = Array.isArray(config.route.rules) ? config.route.rules : [];
+	const 已有规则 = new Set();
+	for (const rule of routeRules) {
+		if (!rule || typeof rule !== 'object' || Array.isArray(rule)) continue;
+		const outbound = rule.outbound || rule.action === 'route' && rule.outbound;
+		if (outbound !== directTag && outbound !== 'DIRECT' && outbound !== 'direct') continue;
+		const keywords = rule.domain_keyword === undefined ? [] : (Array.isArray(rule.domain_keyword) ? rule.domain_keyword : [rule.domain_keyword]);
+		for (const keyword of keywords) 已有规则.add(keyword);
+	}
+	const 新规则 = 直连规则.filter(keyword => !已有规则.has(keyword));
+	if (新规则.length > 0) {
+		config.route.rules = [{ domain_keyword: 新规则, action: 'route', outbound: directTag }, ...routeRules];
+	} else {
+		config.route.rules = routeRules;
+	}
+}
+
 function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON = {}) {
 	const uuid = config_JSON?.UUID || null;
 	const ECH启用 = Boolean(config_JSON?.ECH);
@@ -4322,7 +5033,7 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		clash_yaml = 插入NameserverPolicy(clash_yaml, hostsEntries);
 	}
 
-	if (!需要处理ECH && !需要处理gRPC) return clash_yaml;
+	if (!需要处理ECH && !需要处理gRPC) return 注入Clash直连规则(clash_yaml, config_JSON);
 
 	const lines = clash_yaml.split('\n');
 	const processedLines = [];
@@ -4382,7 +5093,7 @@ function Clash订阅配置文件热补丁(Clash_原始订阅内容, config_JSON 
 		}
 	}
 
-	return processedLines.join('\n');
+	return 注入Clash直连规则(processedLines.join('\n'), config_JSON);
 }
 
 async function Singbox订阅配置文件热补丁(SingBox_原始订阅内容, config_JSON = {}) {
@@ -4658,6 +5369,7 @@ async function Singbox订阅配置文件热补丁(SingBox_原始订阅内容, co
 			});
 		}
 
+		注入Singbox直连规则(config, config_JSON);
 		return JSON.stringify(config, null, 2);
 	} catch (e) {
 		console.error("Singbox热补丁执行失败:", e);
@@ -4681,7 +5393,7 @@ function Surge订阅配置文件热补丁(content, url, config_JSON) {
 	}
 
 	输出内容 = `#!MANAGED-CONFIG ${url} interval=${config_JSON.优选订阅生成.SUBUpdateTime * 60 * 60} strict=false` + 输出内容.substring(输出内容.indexOf('\n'));
-	return 输出内容;
+	return 注入Surge直连规则(输出内容, config_JSON);
 }
 
 async function 请求日志记录(env, request, 访问IP, 请求类型 = "Get_SUB", config_JSON, 是否写入KV日志 = true) {
@@ -4951,15 +5663,18 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 			},
 			SUB: null,
 			SUBNAME: "edge" + "tunnel",
+			地区标签: false,
 			SUBUpdateTime: 3, // 订阅更新时间（小时）
 			TOKEN: await MD5MD5(hostname + userID),
 		},
 		订阅转换配置: {
 			SUBAPI: `https://SUBAPI.${特征码字典[1]}ssss.net`,
-			SUBCONFIG: `https://raw.githubusercontent.com/${特征码字典[1]}/ACL4SSR/refs/heads/main/Clash/config/ACL4SSR_Online_Mini_MultiMode_CF.ini`,
+			SUBCONFIG: 默认订阅转换配置,
+			简洁三组模式: false,
 			SUBEMOJI: false,
 			SUBLIST: false, //仅输出节点信息
 		},
+		直连规则: [],
 		反代: {
 			[_p]: "auto",
 			SOCKS5: {
@@ -5031,6 +5746,31 @@ async function 读取config_JSON(env, hostname, userID, UA = "Mozilla/5.0", 重�
 	config_JSON.HOST = host;
 	if (!config_JSON.HOSTS) config_JSON.HOSTS = [hostname];
 	if (env.HOST) config_JSON.HOSTS = (await 整理成数组(env.HOST)).map(h => h.toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0]);
+	if (!config_JSON.优选订阅生成 || typeof config_JSON.优选订阅生成 !== 'object') {
+		config_JSON.优选订阅生成 = {
+			local: true,
+			本地IP库: { 随机IP: true, 随机数量: 16, 指定端口: -1 },
+			SUB: null,
+			SUBNAME: "edgetunnel",
+			地区标签: false,
+			SUBUpdateTime: 3,
+			TOKEN: await MD5MD5(hostname + userID),
+		};
+	}
+	if (!config_JSON.优选订阅生成.SUBNAME) config_JSON.优选订阅生成.SUBNAME = "edgetunnel";
+	config_JSON.优选订阅生成.地区标签 = 使用地区标签(config_JSON);
+	if (!config_JSON.订阅转换配置 || typeof config_JSON.订阅转换配置 !== 'object') {
+		config_JSON.订阅转换配置 = {
+			SUBAPI: "https://SUBAPI.cmliussss.net",
+			SUBCONFIG: 默认订阅转换配置,
+			简洁三组模式: false,
+			SUBEMOJI: false,
+		};
+	}
+	if (!config_JSON.订阅转换配置.SUBAPI) config_JSON.订阅转换配置.SUBAPI = "https://SUBAPI.cmliussss.net";
+	if (!config_JSON.订阅转换配置.SUBCONFIG) config_JSON.订阅转换配置.SUBCONFIG = 默认订阅转换配置;
+	config_JSON.订阅转换配置.简洁三组模式 = 使用简洁三组模式(config_JSON);
+	config_JSON.直连规则 = 获取自定义直连规则(config_JSON);
 	config_JSON.UUID = userID;
 	if (!config_JSON.随机路径) config_JSON.随机路径 = false;
 	if (!config_JSON.启用0RTT) config_JSON.启用0RTT = false;
@@ -5432,14 +6172,24 @@ async function 请求优选API(urls, 默认端口 = '443', 超时时间 = 3000) 
 			} else {
 				const headers = lines[0].split(',').map(h => h.trim());
 				const dataLines = lines.slice(1);
-				if (headers.includes('IP地址') && headers.includes('端口') && headers.includes('数据中心')) {
-					const ipIdx = headers.indexOf('IP地址'), portIdx = headers.indexOf('端口');
-					const remarkIdx = headers.indexOf('国家') > -1 ? headers.indexOf('国家') :
-						headers.indexOf('城市') > -1 ? headers.indexOf('城市') : headers.indexOf('数据中心');
-					const tlsIdx = headers.indexOf('TLS');
+				const 规范化表头 = headers.map(h => h.toLowerCase().replace(/[\s_-]+/g, ''));
+				const 查找表头 = (候选表头, 模糊关键词 = []) => {
+					let index = 规范化表头.findIndex(h => 候选表头.includes(h));
+					if (index !== -1) return index;
+					return headers.findIndex(h => 模糊关键词.some(keyword => h.toLowerCase().includes(keyword.toLowerCase())));
+				};
+				const ipIdx = 查找表头(['ip', 'ip地址', 'ipaddress', 'address'], ['IP']);
+				const portIdx = 查找表头(['端口', 'port']);
+				const remarkIdx = 查找表头(
+					['国家', 'country', 'countrycode', '地区', 'region', '城市', 'city', '数据中心', 'datacenter', 'colo', 'colocation', 'iata', '机场'],
+					['国家', 'country', '地区', 'region', '城市', 'city', '数据中心', 'colo', '机场']
+				);
+				const tlsIdx = 查找表头(['tls']);
+				if (ipIdx !== -1 && portIdx !== -1 && remarkIdx !== -1) {
 					dataLines.forEach(line => {
 						const cols = line.split(',').map(c => c.trim());
-						if (tlsIdx !== -1 && cols[tlsIdx]?.toLowerCase() !== 'true') return;
+						if (tlsIdx !== -1 && !['1', 'true', 'yes', 'y', 'tls'].includes(String(cols[tlsIdx] || '').toLowerCase())) return;
+						if (!cols[ipIdx] || !cols[portIdx] || !cols[remarkIdx]) return;
 						const wrappedIP = IPV6_PATTERN.test(cols[ipIdx]) ? `[${cols[ipIdx]}]` : cols[ipIdx];
 						const ipItem = `${wrappedIP}:${cols[portIdx]}#${cols[remarkIdx]}`;
 						// 处理第一个数组 - 优选IP

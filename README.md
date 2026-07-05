@@ -138,6 +138,18 @@
 
 本工具支持通过 **PATH路径** 动态切换底层代理方案：
 
+### 自定义订阅直连规则
+
+在后台配置 JSON 中添加或修改 `直连规则`，保存后重新获取订阅即可：
+
+```json
+{
+  "直连规则": ["m-team", "lbx"]
+}
+```
+
+生成 Clash 订阅时会注入 `DOMAIN-KEYWORD,m-team,DIRECT` 这类规则；Sing-box 会注入 `domain_keyword` 直连规则；Surge 会注入 `[Rule]` 直连规则。
+
 - 指定 `PROXYIP` 案例
    ```url
    /proxyip=proxyip.cmliussss.net
